@@ -37,7 +37,8 @@
 |---|---|
 | 客户端 | TypeScript + React Native（Android 优先，新架构 TurboModule + Codegen） |
 | 语音层 | Qwen `qwen-audio-3.1-realtime-plus`（全双工 + `smart_turn`） |
-| 事务层 | 华为云 MaaS（openPangu）—— **待确认（`11` §5.3）** |
+| 事务层 | 华为云 MaaS（openPangu，`thinking=disabled`） |
+| 联网搜索 | 自建 `web_search` 工具，底层用**博查** `ai-search` |
 | 后端 | Python，部署在华为云 ECS |
 | 数据 | 华为云 RDS + Redis；MaaS；CodeArts 开发 |
 | 推送 | 华为 Push Kit（主）+ 自建 WebSocket 长连接（兜底） |
@@ -63,12 +64,12 @@
 
 ## 🚦 当前状态
 
-**已完成**：赛事规则核实、外部能力核查、技术选型定稿、架构设计、部署 skill、文档重构
+**已完成**：赛事规则核实、外部能力核查、技术选型定稿（含 MaaS 与联网搜索）、架构设计、部署 skill、文档重构
 
 **下一关键路径**：官网复核赛题一全文（10-20）→ 华为云账号与预算（10-25）→
 **实测 Qwen Realtime 的 FC（11-01，阻塞语音方案）** → 开通 MaaS（11-01）→ 报名（11-30）→ 上云（12-01）
 
-**仍待定**：仅 **D-21**（Agent 推理模型 —— 建议华为云 MaaS）
+**已全部定稿**：技术选型无未定项（`ideas/12` §四）
 
 详见 [`ideas/12-风险与待验证.md`](ideas/12-风险与待验证.md)。
 
