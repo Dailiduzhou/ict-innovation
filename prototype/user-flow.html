@@ -1,0 +1,1419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f7f5f0">
+<title>AgeGuard · 用户交互流程（设计原型）</title>
+<style>
+/* ============ 画布 ============ */
+:root{
+  --paper:#f7f5f0; --card:#fff; --line:#e2ddd1; --ink:#1c2420; --sub:#6f7a75;
+  --green:#157f5b; --green-d:#0f6649;
+  --blue:#26509a; --blue-bg:#edf2fb; --blue-line:#c6d5ee;
+  --grey:#5d6763; --grey-line:#d6dad7;
+  --amber:#7d5b12; --amber-bg:#fdf5e3; --amber-line:#ead9b0;
+  --me:#2f6b5e;
+  --cool-bg:#f1f4f7; --cool-ink:#1e2a33; --cool-line:#dce4ea; --cool-sub:#5d7284;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;color:var(--ink);font-family:var(--sans);
+  background:#e9edf3;
+  background-image:radial-gradient(#c9d2de 1px,transparent 1px);
+  background-size:14px 14px;
+  -webkit-text-size-adjust:100%;
+  overflow-x:hidden;
+}
+button{font-family:inherit;cursor:pointer}
+
+/* ============ 顶栏 ============ */
+.topbar{
+  display:flex;align-items:center;gap:18px;padding:10px 20px;
+  background:rgba(255,255,255,.86);border-bottom:1px solid #d7dee8;
+  backdrop-filter:blur(8px);position:sticky;top:0;z-index:30;
+}
+.tb-title{display:flex;flex-direction:column;gap:1px;min-width:0}
+.tb-title b{font-size:14px;letter-spacing:.1px}
+.tb-title span{font-size:11.5px;color:#6b7785}
+.legend{margin-left:auto;display:flex;gap:14px;font-size:12px;color:#4d5a68;flex-wrap:wrap}
+.legend span{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.sw{width:11px;height:11px;border-radius:3px;display:inline-block}
+.sw.g{background:var(--green)}
+.sw.b{background:var(--blue);opacity:.85}
+.sw.n{background:#f1f2f1;border:1.5px solid #b9c0bd}
+
+/* ============ 舞台 ============ */
+.stage{
+  display:flex;gap:26px;justify-content:center;align-items:flex-start;
+  padding:22px 20px 26px;min-height:calc(100vh - 58px);
+}
+.device-col{display:flex;flex-direction:column;align-items:center;gap:10px;flex-shrink:0}
+.preview-label{
+  font-family:var(--mono);font-size:11px;color:#5c6b7c;
+  display:flex;gap:12px;align-items:center;letter-spacing:.02em;
+}
+.preview-label i{font-style:normal;color:#8a97a6}
+.device-wrap{position:relative}
+.device{
+  box-sizing:content-box;width:412px;height:915px;padding:9px;
+  border-radius:46px;transform-origin:top left;
+  background:linear-gradient(155deg,#2b3138,#12161a);
+  box-shadow:0 26px 56px rgba(23,33,48,.30),inset 0 0 0 1px rgba(255,255,255,.13);
+}
+.screen{
+  position:relative;width:412px;height:915px;border-radius:38px;overflow:hidden;
+  background:var(--paper);display:flex;flex-direction:column;
+}
+.punch{position:absolute;top:17px;left:50%;transform:translateX(-50%);width:8px;height:8px;border-radius:50%;background:#0b0e11;z-index:9}
+
+/* ============ 控制条 ============ */
+.controls{
+  display:flex;align-items:center;gap:8px;background:#fff;
+  border:1px solid #dbe2ea;border-radius:999px;padding:6px 8px;
+  box-shadow:0 8px 24px rgba(25,35,50,.09);
+}
+.nav{
+  width:42px;height:42px;border-radius:50%;border:1px solid #dbe2ea;background:#fff;
+  font-size:17px;line-height:1;display:grid;place-items:center;color:#2b3a48;padding:0;
+}
+.nav:active{background:#eef3f8}
+.counter{font-family:var(--mono);font-size:12px;color:#54616f;min-width:62px;text-align:center}
+.progress{width:110px;height:4px;background:#e5eaf1;border-radius:99px;overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--me);transition:width .18s ease}
+.iconbtn{
+  border:1px solid #dbe2ea;background:#fff;border-radius:999px;height:42px;padding:0 14px;
+  font-size:12.5px;color:#41505e;display:flex;align-items:center;gap:6px;
+}
+.iconbtn[aria-pressed="true"]{background:#eef7f2;border-color:#b9d9c9;color:#0f6649}
+.mobile-only{display:none}
+
+/* ============ 说明面板 ============ */
+.notes{
+  width:344px;flex-shrink:0;position:sticky;top:76px;
+  max-height:calc(100vh - 104px);overflow:auto;
+  background:#fff;border:1px solid #dbe2ea;border-radius:18px;
+  padding:20px 20px 18px;box-shadow:0 14px 34px rgba(25,35,50,.07);
+}
+.notes-head{display:flex;gap:12px;align-items:flex-start;padding-bottom:14px;border-bottom:1px solid #edf1f5}
+.stepno{
+  font-family:var(--mono);font-size:12px;font-weight:700;color:#fff;background:#2b3a48;
+  border-radius:9px;padding:6px 8px;line-height:1;flex-shrink:0;margin-top:2px;
+}
+.nk{font-size:11.5px;color:#67737f;letter-spacing:.02em}
+.notes h2{font-size:17px;line-height:1.35;margin:3px 0 0;letter-spacing:.01em}
+.nsec{margin-top:16px}
+.nsec h3{font-size:11.5px;letter-spacing:.12em;color:#6c7886;margin:0 0 8px;font-weight:700}
+.nsec ul{margin:0;padding-left:16px}
+.nsec li{font-size:13px;line-height:1.62;color:#38434f;margin-bottom:5px}
+.nsec li::marker{color:#a9b4c0}
+.ncontrast{margin-top:16px;border:1px dashed #cfd8e2;border-radius:12px;padding:12px;background:#f7f9fb}
+.mini-label{font-size:11px;letter-spacing:.04em;color:#7c8b99;margin-bottom:6px;font-weight:700}
+.mini-body{font-size:12.5px;line-height:1.6;color:#3b4753}
+.nfoot{margin-top:18px;padding-top:12px;border-top:1px solid #edf1f5;font-size:11.5px;line-height:1.6;color:#737f8b}
+.notes-close{margin-top:16px}
+.nsclose{display:none;margin-left:auto;width:34px;height:34px;border-radius:50%;border:1px solid #dbe2ea;background:#fff;color:#41505e;font-size:18px;line-height:1;place-items:center;flex-shrink:0;padding:0}
+.nlegend{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#3b4753}
+.nlegend div{display:flex;gap:8px;align-items:center}
+
+/* ============ 手机通用 ============ */
+.phone{flex:1;display:flex;flex-direction:column;min-height:0;background:var(--paper);color:var(--ink);font-size:17px;line-height:1.45}
+.statusbar{
+  height:42px;flex:0 0 42px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;font-size:13px;font-weight:600;color:#3d4b46;
+}
+.sbicons{display:flex;align-items:center;gap:5px;color:#3d4b46}
+.appbar{display:flex;align-items:center;justify-content:space-between;padding:2px 18px 10px;gap:10px}
+.brand{font-weight:800;font-size:18.5px;letter-spacing:.2px;white-space:nowrap}
+.brand.sub{font-size:16.5px;overflow:hidden;text-overflow:ellipsis}
+.navback{font-size:26px;line-height:1;color:#4a5a54;width:28px;flex-shrink:0}
+.ghostlink{
+  font-size:14px;color:#40564f;padding:7px 12px;border:1px solid #d8d2c4;border-radius:999px;
+  background:#fff;white-space:nowrap;
+}
+.ghostlink.tiny{font-size:12.5px;padding:6px 10px;color:#8a8171;border-color:transparent;background:transparent}
+.pad{padding-left:18px;padding-right:18px}
+.fill{flex:1}
+.h1{font-size:25px;line-height:1.32;margin:8px 0 10px;letter-spacing:.01em}
+.lead{font-size:16.5px;line-height:1.6;color:#4b5752;margin:0 0 16px}
+.fine{font-size:13px;line-height:1.55;color:#6b7671;margin:12px 0 0}
+.fine.center{text-align:center;margin:12px 18px 0}
+.tiny{font-size:13.5px;color:#7b8782}
+
+/* 首页 / 对话 */
+.today{
+  margin:0 18px 10px;padding:10px 14px;border-radius:14px;background:#fff;
+  border:1px solid #e6e1d5;font-size:14.5px;color:#3c4a45;
+  display:flex;gap:9px;align-items:center;
+}
+.tdot{width:7px;height:7px;border-radius:50%;background:#b8b09c;flex-shrink:0}
+.chat{
+  flex:1;min-height:0;overflow:auto;padding:2px 18px 8px;
+  display:flex;flex-direction:column;gap:13px;justify-content:flex-start;
+}
+.msg{display:flex;flex-direction:column;gap:5px;max-width:100%}
+.msg.me{align-items:flex-end}
+.msg.ai{align-items:flex-start}
+.bubble{
+  max-width:84%;padding:12px 15px;border-radius:18px;font-size:16.5px;line-height:1.5;
+  word-break:break-word;
+}
+.me .bubble{background:var(--me);color:#fff;border-bottom-right-radius:6px}
+.ai .bubble{background:#fff;border:1px solid #e6e1d5;border-bottom-left-radius:6px}
+.meta{font-size:11.5px;color:#6f7a75;padding:0 4px}
+.msg.me .meta{text-align:right}
+mark{background:#d8efdf;color:inherit;border-radius:4px;padding:0 2px}
+.wave{display:inline-flex;gap:3px;align-items:flex-end;height:16px;margin-right:6px;vertical-align:-3px}
+.wave i{width:3px;background:currentColor;border-radius:2px;opacity:.92}
+.chip{
+  align-self:flex-start;font-size:12.5px;padding:6px 10px;border-radius:999px;
+  background:#f1f0ea;color:#5f6a65;border:1px solid #e0ddd2;display:inline-flex;gap:6px;align-items:center;
+}
+.chip.ok{background:#eaf5ef;border-color:#c3ddd0;color:#0f6649}
+.chip.blue{background:var(--blue-bg);border-color:var(--blue-line);color:#224a8d}
+.chip.amber{background:var(--amber-bg);border-color:var(--amber-line);color:var(--amber)}
+.statuspill{
+  align-self:flex-start;display:inline-flex;align-items:center;gap:8px;
+  font-size:12.5px;color:#6d7873;background:#f3f1ea;border:1px solid #e2ddd1;
+  border-radius:999px;padding:6px 11px;
+}
+.spin{width:12px;height:12px;border-radius:50%;border:2px solid #cfd8d3;border-top-color:#7b8d85;animation:spin 1s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pulse{display:inline-block;width:9px;height:9px;border-radius:50%;background:#9ce0bd;margin-right:8px;animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.45;transform:scale(.85)}50%{opacity:1;transform:scale(1.1)}}
+
+/* 底部输入条：文字 + 语音 */
+.composer{flex:0 0 auto;padding:8px 16px 14px;display:flex;flex-direction:column;gap:7px;background:var(--paper)}
+.inputrow{display:flex;gap:9px;align-items:center}
+.textfield{
+  flex:1;min-height:54px;border-radius:16px;border:1px solid #dcd7c9;background:#fff;
+  display:flex;align-items:center;padding:0 16px;font-size:16px;color:#8a948f;line-height:1.3;
+}
+.micbtn{
+  width:54px;height:54px;border-radius:16px;background:var(--me);color:#fff;border:none;
+  display:grid;place-items:center;flex-shrink:0;box-shadow:0 8px 18px rgba(47,107,94,.18);padding:0;
+}
+.micbtn:active{background:var(--green-d)}
+.inputbar{
+  width:100%;min-height:58px;border-radius:18px;border:1px solid #2f6b5e;background:#e7f2ec;
+  display:flex;align-items:center;gap:12px;padding:0 14px 0 16px;color:#1d5b49;
+  font-size:15.5px;font-weight:700;text-align:left;font-family:inherit;line-height:1.3;
+}
+.bars{display:inline-flex;align-items:center;justify-content:center;gap:4px;height:28px;width:26px;flex-shrink:0}
+.bars i{width:4px;border-radius:3px;background:#1d6b52;height:9px;animation:bars 1.05s ease-in-out infinite}
+.bars i:nth-child(2){animation-delay:.18s}
+.bars i:nth-child(3){animation-delay:.36s}
+@keyframes bars{0%,100%{height:8px}50%{height:27px}}
+.livetext{flex:1;min-width:0}
+.stopmark{
+  width:34px;height:34px;border-radius:10px;background:#1d5b49;color:#fff;flex-shrink:0;
+  display:grid;place-items:center;font-size:10px;line-height:1;
+}
+.chint{font-size:12px;color:#6f7a75;text-align:center;line-height:1.45}
+.mic-round{
+  width:156px;height:156px;border-radius:50%;border:none;background:var(--me);color:#fff;
+  font-size:20px;font-weight:800;box-shadow:0 18px 34px rgba(47,107,94,.28),0 0 0 12px rgba(47,107,94,.08);
+  display:grid;place-items:center;margin:26px auto 0;
+}
+.mic-round:active{background:var(--green-d)}
+
+/* 引导 */
+.onboard{flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 34px 34px;text-align:center}
+.mark{
+  width:62px;height:62px;border-radius:20px;margin:0 auto 26px;background:#fff;
+  border:1px solid #ded8ca;display:grid;place-items:center;
+  box-shadow:0 10px 24px rgba(60,70,60,.08);
+}
+.mark::after{content:"";width:22px;height:22px;border-radius:50%;background:var(--me);box-shadow:0 0 0 7px rgba(47,107,94,.15)}
+.onboard h1{font-size:28px;line-height:1.3;margin:0 0 12px;letter-spacing:.01em}
+.onboard .lead{font-size:16px;color:#57635e}
+.osdialog{
+  margin:0 14px 16px;background:#fff;border-radius:22px;padding:20px;
+  border:1px solid #e0dbd0;box-shadow:0 18px 40px rgba(40,50,45,.16);
+}
+.os-kicker{font-size:11.5px;letter-spacing:.14em;color:#98a29d;margin-bottom:8px}
+.os-title{font-size:17.5px;font-weight:800;line-height:1.4;margin-bottom:8px}
+.os-body{font-size:14px;line-height:1.6;color:#5a6661;margin-bottom:14px}
+.os-actions{display:flex;flex-direction:column;gap:8px}
+
+/* 信息列表 */
+.list{flex:1;min-height:0;overflow:auto;padding:4px 18px 0;display:flex;flex-direction:column;gap:12px}
+.info{display:flex;gap:13px;background:#fff;border:1px solid #e6e1d5;border-radius:16px;padding:14px}
+.ico{font-size:20px;line-height:1.2;width:26px;flex-shrink:0;text-align:center}
+.info b{font-size:16px;display:block;margin-bottom:4px}
+.info p{font-size:13.5px;line-height:1.55;color:#6a7570;margin:0}
+.switchcard{
+  display:flex;align-items:center;gap:14px;justify-content:space-between;
+  background:#fff;border:1px solid #e6e1d5;border-radius:16px;padding:15px;
+}
+.switchcard b{font-size:15.5px;display:block;margin-bottom:4px}
+.switchcard p{font-size:13px;line-height:1.5;color:#6a7570;margin:0;max-width:230px}
+.switch{width:52px;height:30px;border-radius:99px;background:#ded9cc;position:relative;flex-shrink:0}
+.switch i{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.switch.on{background:var(--green)}
+.switch.on i{left:25px}
+
+/* 卡片 */
+.shelf{flex:0 0 auto;position:relative;padding-top:2px}
+.shelf::before{
+  content:"";position:absolute;left:18px;right:18px;top:0;height:1px;
+  background:linear-gradient(90deg,transparent,#ded7c8 18%,#ded7c8 82%,transparent);
+}
+.shelf .card{margin:8px 16px 6px}
+.shelf.collapsed .card{display:none}
+.shelf .traychip{display:none}
+.shelf.collapsed .traychip{display:flex}
+.traychip{
+  margin:6px 16px 8px;align-items:center;gap:10px;cursor:pointer;
+  background:var(--amber-bg);border:1px solid var(--amber-line);border-radius:14px;
+  padding:10px 12px;font-size:13px;color:#6b5a2e;
+}
+.card{
+  margin:0 16px 10px;background:#fff;border:1px solid #ddd7c9;border-radius:20px;
+  padding:16px;box-shadow:0 10px 26px rgba(40,50,45,.08);
+}
+.card-kicker{
+  font-size:11.5px;letter-spacing:.1em;color:#786c53;font-weight:800;
+  display:flex;align-items:center;gap:7px;margin-bottom:7px;
+}
+.collapse{
+  margin-left:auto;border:1px solid #e4dfd2;background:#faf8f3;color:#6f6550;
+  font-size:11.5px;font-weight:700;padding:6px 10px;border-radius:999px;
+  display:flex;align-items:center;gap:3px;min-height:30px;
+}
+.collapse::after{content:"⌄";font-size:14px;line-height:1;margin-top:-2px}
+
+.card-kicker::before{content:"";width:6px;height:6px;border-radius:50%;background:#c9a75f}
+.card-title{font-size:19.5px;font-weight:800;line-height:1.38;margin-bottom:8px;letter-spacing:.01em}
+.quote{
+  margin:10px 0;padding:10px 12px;border-left:3px solid #cfd8d4;background:#f7f8f5;
+  border-radius:0 10px 10px 0;font-size:15px;line-height:1.55;color:#3b4742;
+}
+.card-meta{font-size:12.5px;line-height:1.5;color:#67726d;margin-bottom:12px}
+.actions{display:flex;flex-direction:column;gap:8px}
+.actions.pad{padding:0 18px 18px}
+.btn{
+  min-height:52px;border-radius:14px;font-size:17px;font-weight:700;border:1px solid transparent;
+  background:#fff;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 14px;
+  line-height:1.3;
+}
+.btn.primary{background:var(--green);border-color:var(--green);color:#fff}
+.btn.primary:active{background:var(--green-d)}
+.btn.secondary{background:var(--blue-bg);border-color:var(--blue-line);color:var(--blue)}
+.btn.secondary:active{background:#e2ebf9}
+.btn.ghost{background:#f1f2f1;border-color:#d3d8d5;color:#4f5a56}
+.btn.ghost:active{background:#f4f5f4}
+
+/* 等你决定 */
+.tray{
+  flex:0 0 auto;cursor:pointer;margin:4px 16px 8px;display:flex;align-items:center;gap:10px;
+  background:var(--amber-bg);border:1px solid var(--amber-line);border-radius:14px;
+  padding:10px 12px;font-size:13px;color:#6b5a2e;
+}
+.tray .tlabel,.traychip .tlabel{background:#fff;border:1px solid var(--amber-line);border-radius:999px;padding:4px 9px;font-weight:800;font-size:11.5px;color:var(--amber);white-space:nowrap}
+.tray .ttext,.traychip .ttext{flex:1;font-weight:700;font-size:14px;color:#4f4426;line-height:1.35}
+.tray .tgo,.traychip .tgo{font-size:18px;color:#a08a4d;padding:0 2px}
+
+/* 到点提醒 */
+.phone.reminder{background:radial-gradient(120% 80% at 50% 0%,#eef5f0 0%,var(--paper) 62%)}
+.rem{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:10px 26px;gap:12px}
+.rem-time{font-size:14px;letter-spacing:.12em;color:#7b8883;font-weight:700}
+.rem-title{font-size:38px;font-weight:800;line-height:1.2;letter-spacing:.01em}
+.rem-sub{font-size:15px;color:#6a7570;line-height:1.5}
+.rem-voice{
+  margin-top:6px;border:1px solid #d8d2c4;background:#fff;border-radius:999px;
+  padding:10px 18px;font-size:14.5px;color:#3f514a;display:inline-flex;gap:8px;align-items:center;
+}
+
+/* 子女端 */
+.phone.child{background:var(--cool-bg);color:var(--cool-ink)}
+.chead{display:flex;align-items:center;gap:12px;padding:2px 18px 12px}
+.chead.back{gap:6px}
+.avatar{width:44px;height:44px;border-radius:14px;background:#2c3d4b;color:#fff;display:grid;place-items:center;font-weight:800;font-size:17px;flex-shrink:0}
+.cwho{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.cwho b{font-size:17px;letter-spacing:.01em}
+.cwho span{font-size:12px;color:var(--cool-sub)}
+.dots{color:#8b9aa7;font-size:18px;letter-spacing:1px}
+.cback{width:30px;height:30px;border:none;background:transparent;font-size:26px;line-height:1;color:#3d5162;padding:0;flex-shrink:0}
+.req{
+  margin:0 16px 12px;display:flex;align-items:center;gap:10px;
+  background:#fff;border:1px solid #f0d9cd;border-left:4px solid #b4532a;
+  border-radius:14px;padding:12px;box-shadow:0 6px 16px rgba(40,60,80,.06);
+}
+.reqdot{width:8px;height:8px;border-radius:50%;background:#b4532a;flex-shrink:0}
+.reqtext{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.reqtext b{font-size:15px}
+.reqtext span{font-size:12px;color:var(--cool-sub)}
+.reqsub{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.reqgo{font-size:20px;color:#7c8b99}
+.csection{padding:2px 18px 8px;font-size:12px;letter-spacing:.12em;color:#7c8b99;font-weight:800;display:flex;align-items:center;gap:7px}
+.csection::before{content:"";width:7px;height:7px;border-radius:2px;background:#2f8064}
+.taglegend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:#67757f;padding:4px 4px 2px}
+.taglegend span{display:flex;align-items:center;gap:5px}
+.dot{width:7px;height:7px;border-radius:2px;display:inline-block;flex-shrink:0}
+.dot.g{background:#2f8064}.dot.b{background:#2f5f8a}.dot.y{background:#a87b1e}.dot.o{background:#b4532a}.dot.n{background:#8b9aa7}
+.cscroll{flex:1;min-height:0;overflow:auto;padding:0 16px 8px;display:flex;flex-direction:column;gap:10px}
+.note-card{background:#fff;border:1px solid #dde5ec;border-left:4px solid #2f8064;border-radius:16px;padding:14px;box-shadow:0 6px 16px rgba(40,60,80,.05)}
+.nhead{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.nhead b{font-size:16px}
+.tag{display:inline-block;font-size:11px;padding:3px 7px;border-radius:999px;background:#eef3f8;color:#51677a;border:1px solid #e0e9f1;white-space:nowrap;line-height:1.35}
+.tag.quote{background:#e7f3ec;border-color:#c2ddce;color:#12694c}
+.tag.plan{background:#e9f0fb;border-color:#c6d5ee;color:#234d91}
+.tag.memory{background:#fbf2df;border-color:#ecd7ac;color:#77570f}
+.tag.ai{background:#eef0f2;border-color:#dde2e6;color:#5c6873}
+.tag.ask{background:#fdeee8;border-color:#f0cdbd;color:#8a3f1e}
+.note-card .quote{border-left-color:#c9d9e8;background:#f7fafc;font-size:14.5px}
+.nmeta{font-size:11.5px;line-height:1.55;color:#65757f}
+.cempty{font-size:13px;color:#6e7f8c;padding:6px 4px;line-height:1.5}
+.linkrow{
+  display:flex;align-items:center;justify-content:space-between;width:100%;
+  background:#fff;border:1px solid #dde5ec;border-radius:14px;padding:14px;
+  font-size:15px;color:#2f4657;font-weight:700;
+}
+.clue{background:#fff;border:1px solid #dde5ec;border-left:4px solid #2f8064;border-radius:16px;padding:14px}
+.clue.plan{border-left-color:#2f5f8a}
+.clue.memory{border-left-color:#a87b1e}
+.clue-h{font-size:16px;font-weight:800;margin-bottom:6px}
+.clue p{font-size:14px;line-height:1.6;color:#42535f;margin:0 0 10px}
+.clue-m{display:flex;align-items:center;gap:8px;font-size:11.5px;color:#7c8b99}
+.cfine{font-size:12.5px;color:#6e7f8c;line-height:1.5;padding:2px 4px 6px}
+.cfootbar{padding:8px 16px 20px;display:flex;flex-direction:column;gap:8px}
+.ask{background:#fff;border:1px solid #f0d9cd;border-left:4px solid #b4532a;border-radius:16px;padding:16px}
+.ask .card-kicker{color:#8a3f1e}
+.ask .card-kicker::before{background:#b4532a}
+.ask-t{font-size:19px;font-weight:800;line-height:1.4;margin-bottom:4px}
+.ask .quote{border-left-color:#c9d9e8;background:#f7fafc;font-size:14.5px}
+.ask .note-m{font-size:11.5px;color:#7c8b99;line-height:1.55}
+
+/* 总览 */
+.ovlead{font-size:13px;color:#6b7671;margin:2px 18px 14px;line-height:1.55}
+.ovscroll{flex:1;min-height:0;overflow:auto;padding:0 18px 20px;-webkit-mask-image:linear-gradient(#000 90%,transparent);mask-image:linear-gradient(#000 90%,transparent)}
+.ovgroup{margin-bottom:14px}
+.ovlabel{font-size:11px;letter-spacing:.12em;color:#7b8681;font-weight:800;margin-bottom:6px}
+.ovrow{
+  width:100%;display:flex;align-items:center;gap:10px;background:#fff;
+  border:1px solid #e6e1d5;border-radius:13px;padding:11px 12px;margin-bottom:7px;
+  font-size:14px;color:#2f3b36;text-align:left;
+}
+.ovrow i{
+  font-style:normal;font-family:var(--mono);font-size:11px;font-weight:700;color:#fff;
+  background:#6f7f78;border-radius:7px;padding:4px 6px;line-height:1;flex-shrink:0;
+}
+.ovrow span{margin-left:auto;color:#a9b3ae;font-size:16px}
+.ovarrow{text-align:center;color:#c3cbc6;font-size:13px;line-height:1;margin:-2px 0 5px}
+.ovcolors{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:#6a7570;margin-top:4px}
+.ovcolors span{display:flex;align-items:center;gap:5px}
+
+/* ============ 手机适配 ============ */
+@media (max-width:820px){
+  body{background:#fff}
+  .topbar{height:36px;padding:0 12px;gap:8px}
+  .tb-title{gap:0}
+  .tb-title b{font-size:11.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tb-title span{display:block;font-size:10px;line-height:1.25;color:#7a8794;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .legend{display:none}
+  .stage{
+    display:block;padding:0;
+    height:calc(100dvh - 36px - 62px - env(safe-area-inset-bottom));
+    min-height:0;
+  }
+  .device-col{height:100%;gap:0}
+  .preview-label{display:none}
+  .device-wrap{width:100%!important;height:100%!important}
+  .device{
+    width:100%!important;height:100%!important;padding:0!important;transform:none!important;
+    border-radius:0;box-shadow:none;background:transparent;
+  }
+  .screen{
+    width:100%;height:100%;border-radius:0;
+    padding-top:env(safe-area-inset-top);
+  }
+  .punch,.statusbar{display:none}
+  .controls{
+    position:fixed;left:0;right:0;bottom:0;z-index:35;border-radius:0;
+    height:calc(62px + env(safe-area-inset-bottom));
+    padding:0 10px;padding-bottom:env(safe-area-inset-bottom);
+    justify-content:center;border-left:0;border-right:0;border-bottom:0;
+    box-shadow:0 -8px 22px rgba(25,35,50,.08);gap:6px;
+  }
+  .progress{display:none}
+  .mobile-only{display:flex}
+  .notes{
+    position:fixed;left:0;right:0;top:auto;bottom:calc(62px + env(safe-area-inset-bottom));
+    width:auto;max-height:72dvh;z-index:40;border-radius:18px 18px 0 0;
+    transform:translateY(115%);transition:transform .24s ease;
+    box-shadow:0 -18px 40px rgba(20,30,45,.18);padding:18px 18px calc(16px + env(safe-area-inset-bottom));
+  }
+  .notes.open{transform:translateY(0)}
+  .notes-backdrop{
+    position:fixed;inset:0;background:rgba(18,26,34,.35);z-index:39;opacity:0;pointer-events:none;
+    transition:opacity .24s ease;
+  }
+  .notes-backdrop.open{opacity:1;pointer-events:auto}
+  .nfoot{margin-bottom:0}
+  .nsclose{display:grid}
+  .appbar{padding-top:8px}
+  .rem-title{font-size:34px}
+}
+/* 矮屏：允许整屏滚动，并压缩固定模块，保证按钮够得着 */
+@media (max-width:820px) and (max-height:720px){
+  .phone{overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .micbtn,.textfield{height:48px;min-height:48px}
+  .micbtn{width:48px}
+  .inputbar{min-height:50px}
+  .composer{padding:6px 14px 12px}
+  .card{padding:12px 13px;margin:0 14px 6px}
+  .shelf .card{margin:6px 14px 4px}
+  .card-kicker{margin-bottom:5px}
+  .card-title{font-size:17.5px;margin-bottom:6px}
+  .card-meta{font-size:11.5px;margin-bottom:8px}
+  .quote{font-size:13.5px;line-height:1.45;padding:7px 9px;margin:6px 0}
+  .btn{min-height:44px;font-size:15.5px}
+  .actions{gap:6px}
+  .actions.pad{padding:0 16px 12px}
+  .appbar{padding:4px 16px 4px}
+  .chat{min-height:96px}
+  .chint{display:none}
+  .today{margin:0 16px 8px;padding:8px 12px}
+  .h1{font-size:22px;margin:4px 0 8px}
+  .lead{font-size:15px;margin-bottom:10px}
+  .list{gap:9px;padding:0 14px}
+  .info{padding:11px}
+  .osdialog{padding:16px;margin:0 12px 12px}
+  .rem-title{font-size:30px}
+  .rem{gap:8px;padding:6px 22px}
+  .chead{padding-bottom:8px}
+  .cfootbar{padding:6px 14px 14px}
+  .ask{padding:13px}
+  .ask-t{font-size:17px}
+  .notes-head{padding-bottom:10px}
+  .onboard{padding:0 26px 18px}
+  .onboard h1{font-size:24px}
+  .onboard .lead{font-size:15px}
+  .mark{width:52px;height:52px;margin-bottom:16px}
+  .mic-round{width:132px;height:132px;font-size:18px;margin-top:16px}
+  .osdialog{margin-top:8px}
+}
+@media (max-width:380px){
+  .brand{font-size:17px}
+  .ghostlink{font-size:13px;padding:6px 10px}
+  .card-title{font-size:18.5px}
+  .btn{font-size:16.5px}
+  .rem-title{font-size:30px}
+}
+@media (prefers-reduced-motion:reduce){
+  .pulse,.spin,.bars i{animation:none}
+  .bars i:nth-child(1){height:9px}.bars i:nth-child(2){height:20px}.bars i:nth-child(3){height:13px}
+}
+</style>
+</head>
+<body>
+<noscript><p style="padding:16px;font:14px/1.6 system-ui">这份原型需要启用 JavaScript 才能查看。</p></noscript>
+
+<header class="topbar">
+  <div class="tb-title">
+    <b>AgeGuard · 用户交互流程</b>
+    <span>设计原型 · 人物与对话虚构 · 未实现、未验证</span>
+  </div>
+  <div class="legend" aria-label="按钮颜色约定">
+    <span><i class="sw g"></i>是 / 同意</span>
+    <span><i class="sw b"></i>更改 / 换方式</span>
+    <span><i class="sw n"></i>否 / 不用</span>
+  </div>
+</header>
+
+<main class="stage">
+  <div class="device-col">
+    <div class="preview-label"><span>Preview</span><i>Pixel 7 · 412 × 915 dp</i><i id="zoom">75%</i></div>
+    <div class="device-wrap" id="wrap">
+      <div class="device" id="device">
+        <div class="punch"></div>
+        <div class="screen" id="screen"></div>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="nav" id="prev" aria-label="上一屏">‹</button>
+      <div class="counter" id="counter">01 / 21</div>
+      <button class="nav" id="next" aria-label="下一屏">›</button>
+      <div class="progress"><i id="bar"></i></div>
+      <button class="iconbtn" id="play" aria-pressed="false">▶ 自动</button>
+      <button class="iconbtn mobile-only" id="notesBtn">说明</button>
+    </div>
+  </div>
+
+  <aside class="notes" id="notes" aria-live="polite"></aside>
+</main>
+<div class="notes-backdrop" id="backdrop"></div>
+
+<script>
+/* ============================================================
+   AgeGuard 交互流程原型
+   21 屏 · 单文件 · 无外部依赖
+   ============================================================ */
+
+const MIC = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><rect x="9" y="2.5" width="6" height="11.5" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3.5"/></svg>';
+const SB = `<div class="statusbar"><span>{{T}}</span><span class="sbicons">
+<svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><rect x="0" y="7" width="2.5" height="4" rx=".8"/><rect x="4" y="5" width="2.5" height="6" rx=".8"/><rect x="8" y="2.5" width="2.5" height="8.5" rx=".8"/><rect x="12" y="0" width="2.5" height="11" rx=".8"/></svg>
+<svg width="15" height="11" viewBox="0 0 15 11" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M1 3.6a9 9 0 0 1 13 0"/><path d="M3.6 6.2a5.4 5.4 0 0 1 7.8 0"/><circle cx="7.5" cy="9" r=".9" fill="currentColor" stroke="none"/></svg>
+<svg width="23" height="11" viewBox="0 0 23 11" fill="none"><rect x=".6" y=".6" width="18.5" height="9.8" rx="2.6" stroke="currentColor" stroke-opacity=".5"/><rect x="2.2" y="2.2" width="13.5" height="6.6" rx="1.6" fill="currentColor"/><path d="M20.6 3.4v4.2a2.3 2.3 0 0 0 0-4.2z" fill="currentColor" fill-opacity=".5"/></svg>
+</span></div>`;
+
+const phone = (inner, cls='') => `<div class="phone ${cls}">${SB}${inner}</div>`;
+const elderTop = (right='我记住的事') => `<div class="appbar"><div class="brand">AgeGuard</div><span class="ghostlink">${right}</span></div>`;
+const ai = (t, meta='助理') => `<div class="msg ai"><div class="bubble">${t}</div>${meta?`<div class="meta">${meta}</div>`:''}</div>`;
+const me = (t, meta='') => `<div class="msg me"><div class="bubble">${t}</div>${meta?`<div class="meta">${meta}</div>`:''}</div>`;
+const chip = (t, cls='') => `<div class="chip ${cls}">${t}</div>`;
+const pill = (t, cls='') => `<div class="statuspill ${cls}">${t}</div>`;
+const b = (label, kind='primary', goto) => `<button class="btn ${kind}"${goto?` data-goto="${goto}"`:''}>${label}</button>`;
+const act = (...btns) => `<div class="actions">${btns.join('')}</div>`;
+const composer = (goto, mode='idle', hint='点麦克风说话，也可以打字') => {
+  if(mode==='live') return `
+    <div class="composer">
+      <button type="button" class="inputbar" ${goto?`data-goto="${goto}"`:''}>
+        <span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="livetext">正在听… 说完了点这里</span>
+        <span class="stopmark">■</span>
+      </button>
+      ${hint?`<div class="chint">${hint}</div>`:''}
+    </div>`;
+  return `
+    <div class="composer">
+      <div class="inputrow">
+        <div class="textfield" role="textbox" aria-readonly="true">也可以打字…</div>
+        <button type="button" class="micbtn" ${goto?`data-goto="${goto}"`:''} aria-label="开始说话">${MIC}</button>
+      </div>
+      ${hint?`<div class="chint">${hint}</div>`:''}
+    </div>`;
+};
+const card = (kicker, title, body, buttons, trayLabel) => `
+  <div class="shelf">
+    <div class="card">
+      <div class="card-kicker"><span>${kicker}</span><button type="button" class="collapse" data-collapse>收起</button></div>
+      <div class="card-title">${title}</div>${body}${act(...buttons)}
+    </div>
+    <div class="traychip" data-expand><span class="tlabel">等你决定 · 1</span><span class="ttext">${trayLabel||title}</span><span class="tgo">›</span></div>
+  </div>`;
+
+/* ---------------------------- 各屏 ---------------------------- */
+const F = [];
+
+/* 01 */
+F.push({
+  time:'15:02',
+  who:'老人端 · 第一次打开',
+  title:'打开就能说，不用先学',
+  screen: phone(`
+    <div class="onboard">
+      <div class="mark"></div>
+      <h1>有事，说一声就行</h1>
+      <p class="lead">不用学怎么用。<br>点下面的大圆键，想说什么就说什么。</p>
+      <button class="mic-round" data-goto="2">${MIC}<br>开始说话</button>
+      <p class="fine">只有你点开的时候才会听</p>
+      <p class="tiny" style="margin-top:22px;color:#8a948f">已经用过？用手机号登录</p>
+    </div>`),
+  why:[
+    '打开即说话，不需要先选择“聊天／提醒／待办”功能，也不要求先绑定子女或设备。',
+    '首屏只承诺一件事：点一下就能说。价值主张放在后面由对话体现。',
+    '“只有你点开的时候才会听”直接写在首屏，避免把全双工理解成全天监听。'
+  ],
+  edge:[
+    '首次点“开始说话”才触发系统麦克风权限，不在安装时静默申请。',
+    '拒绝麦克风仍可使用文字输入与查看提醒，不把语音做成唯一路径。',
+    '不在这里要求老人填写健康、年龄、病史等表单。'
+  ]
+});
+
+/* 02 */
+F.push({
+  time:'15:02',
+  who:'老人端 · 首次使用',
+  title:'第一次讲清：什么时候在听',
+  screen: phone(`
+    <div class="appbar"><span class="navback">‹</span><div class="brand sub">开始之前</div><span class="ghostlink tiny">跳过</span></div>
+    <div class="list">
+      <div class="info"><span class="ico">🎙</span><div><b>只有你点开的时候才会听</b><p>点一下就停。说的时候，屏幕上方一直显示“正在听”，不会偷偷录。</p></div></div>
+      <div class="info"><span class="ico">📝</span><div><b>说过的话会变成文字</b><p>为了下次还能接着聊。你说“这段别存”，这段就不存。</p></div></div>
+      <div class="info"><span class="ico">🔔</span><div><b>到时间的提醒会响</b><p>提醒只在这个手机上响。手机没网时，我会告诉你没送到。</p></div></div>
+    </div>
+    <div class="osdialog">
+      <div class="os-kicker">系统</div>
+      <div class="os-title">允许「AgeGuard」使用麦克风？</div>
+      <div class="os-body">只在你点开说话时使用。你随时可以在手机设置里关掉。</div>
+      <div class="os-actions">${b('允许','primary',3)}${b('不允许','ghost',3)}</div>
+    </div>`),
+  why:[
+    '把三个最容易误解的点一次讲清：何时录音、话怎么存、提醒怎么响；其余设置以后再说。',
+    '系统权限弹窗用系统口吻呈现，说明与权限放在同一屏，避免老人不知道“允许”意味着什么。',
+    '“这段别存”是可见的、可说的控制手段，不是藏在设置里的开关。'
+  ],
+  edge:[
+    '不允许麦克风时不进入死循环；可继续用文字，并保留查看提醒的能力。',
+    '录音指示必须常驻可见，不能只在设置页说明。',
+    '不承诺“一定送到”：手机后台、网络与通知权限都存在限制。'
+  ]
+});
+
+/* 03 */
+F.push({
+  time:'15:03',
+  who:'老人端 · 家人共享设置',
+  title:'共享默认关闭，随时可跳过',
+  screen: phone(`
+    <div class="appbar"><span class="navback">‹</span><div class="brand sub">家人能看到什么</div><span class="ghostlink tiny">跳过</span></div>
+    <div class="pad">
+      <h1 class="h1">要不要让小林<br>看到一点近况？</h1>
+      <p class="lead">她能看到你愿意分享的一两句话，和可以接着聊的话题。看不到你全部的聊天。</p>
+      <div class="switchcard">
+        <div><b>让小林看到我分享的内容</b><p>默认关闭。每次分享前，还会再问你一次。</p></div>
+        <div class="switch off" aria-label="当前关闭"><i></i></div>
+      </div>
+      <p class="fine">你不同意分享的内容，她那边不会有任何提示。</p>
+    </div>
+    <div class="fill"></div>
+    <div class="actions pad">
+      ${b('让小林看一点','primary',4)}
+      ${b('先只给我自己用','ghost',4)}
+    </div>`),
+  why:[
+    '独立模式必须成立：跳过这一步，老人仍然能用完整的对话、记忆与提醒。',
+    '默认关闭，且明确“每次分享前还会再问一次”，把类别授权与逐次确认结合起来。',
+    '把“她看不到全部聊天”写在开启之前，而不是开启之后。'
+  ],
+  edge:[
+    '拒绝共享不产生旁路提示：小林端不得出现“有一条内容未分享”。',
+    '亲属关系不自动等于访问权；开启后仍可撤销。',
+    '不把家人绑定做成使用前提或“孝心”引导。'
+  ]
+});
+
+/* 04 */
+F.push({
+  time:'15:04',
+  who:'老人端 · 对话首页',
+  title:'对话就是首页，没有待办中心',
+  screen: phone(`
+    ${elderTop()}
+    <div class="today"><span class="tdot"></span><span>今天没有安排</span></div>
+    <div class="chat">
+      ${ai('陈阿姨，我在。<br>想说什么都行，不用想好怎么开头。','助理 · 刚刚')}
+    </div>
+    ${composer(5,'idle','点麦克风说话，也可以打字')}`),
+  why:[
+    '打开就是对话，不需要先理解功能分区；底部同时有文字输入和麦克风，提醒与记忆退到二级入口。',
+    '“今天没有安排”如实显示为空，不用励志文案或假数据填充。',
+    '不设待办中心、不显示红点，避免把陪伴变成催办。'
+  ],
+  edge:[
+    '没有任务时首页仍然可用、可看，不以“待办数”驱动打开。',
+    '不因老人没有创建任何事项而追问或反复推荐功能。',
+    '右上角“我记住的事”是查看、纠正、删除的入口，不是家属档案。'
+  ]
+});
+
+/* 05 */
+F.push({
+  time:'15:07',
+  who:'老人端 · 闲聊中',
+  title:'长语音不是噪声，说话时可以插话',
+  screen: phone(`
+    ${elderTop()}
+    <div class="today"><span class="tdot"></span><span>今天没有安排</span></div>
+    <div class="chat">
+      ${me(`今天鱼又活泼起来了，前两天我还担心呢……你小时候也爱站这里看。我平常周末给鱼缸换水，最近老忘。`,'正在说 · 00:41')}
+      ${ai('嗯，我在听。','助理 · 你可以直接说话打断我')}
+    </div>
+    ${composer(6,'live','我说话的时候，你也可以直接插话，不用等我停')}`),
+  why:[
+    '长语音同时承载信息与关系，界面不用“重点提取中”打断表达。',
+    '全双工的可感知证据：助理回应时，老人仍可继续说话；底部三条竖线持续变化，表示正在录音。',
+    '“正在听”是常驻状态，不是一次性的录音动画。'
+  ],
+  edge:[
+    '分段录音、录音后再上传都不算全双工；本屏是设计目标，不是已实现证据。',
+    '不把话多、重复、细节解释成认知问题，也不把它们当无效内容清理。',
+    '老人随时可以点停，停止后不再采集。'
+  ]
+});
+
+/* 06 */
+F.push({
+  time:'15:09',
+  who:'老人端 · 改口',
+  title:'说到一半改口，只保留最后一次',
+  screen: phone(`
+    ${elderTop()}
+    <div class="today"><span class="tdot"></span><span>今天没有安排</span></div>
+    <div class="chat">
+      ${me('周六九点提醒我……不，<mark>十点</mark>，我九点要出去。','正在说 · 00:12')}
+      ${ai('好，周六十点。<br>九点那条我不记了。','助理 · 正在核对')}
+      ${chip('已按最后一次说的改','blue')}
+    </div>
+    ${composer(7,'live','改口不用重新说一遍')}`),
+  why:[
+    '把“改口”当作正常说话的一部分，而不是要求老人重新组织一句完整指令。',
+    '更正进入同一业务上下文，界面明确“九点那条不记了”，让老人敢改。',
+    '先回应“好，十点”，此时仍不说“已保存”。'
+  ],
+  edge:[
+    '不生成九点、十点两条提醒；迟到的旧结果不能覆盖新意愿。',
+    '不能只靠模型回复确认更正，计划版本由业务服务控制。',
+    '改口过程不打断当前语音，不需要老人退出重来。'
+  ]
+});
+
+/* 07 */
+F.push({
+  time:'15:10',
+  who:'老人端 · 后台整理',
+  title:'先回应“听到了”，再说“保存好”',
+  screen: phone(`
+    ${elderTop()}
+    <div class="today"><span class="tdot"></span><span>今天没有安排</span></div>
+    <div class="chat">
+      ${me('对了，鱼粮快没了，想请小林回来时带一袋。','00:06')}
+      ${ai('听到了。鱼的事、周六十点换水、还有鱼粮，我整理一下。','助理 · 正在后台整理')}
+      ${pill('<i class="spin"></i>正在整理 · 还没保存好')}
+    </div>
+    ${composer('','live','整理在后台进行，不影响你继续说话')}`),
+  why:[
+    '对话与整理并行：老人不用等系统“处理完”才能继续说。',
+    '严格区分“听到了”“正在整理”“已经保存”，本屏只说前两个。',
+    '后台整理结果形成带来源的记忆候选，等待确认。'
+  ],
+  edge:[
+    '持久化成功之前不得出现“记下了”“已保存”。',
+    '断线或失败时保留草稿并说明未保存，不能假装成功。',
+    '整理不能覆盖老人此后的新说法。'
+  ]
+});
+
+/* 08 */
+F.push({
+  time:'15:11',
+  who:'老人端 · 分享卡',
+  title:'只分享引用的这一段，三个选择三种颜色',
+  screen: phone(`
+    ${elderTop()}
+    <div class="chat">
+      ${me('今天鱼又活泼起来了……')}
+      ${ai('刚才那段，你愿意让小林看看吗？')}
+    </div>
+    ${card('可以分享','要把这段给小林看看吗？',`
+      <div class="quote">“今天鱼又活泼起来了，前两天我还担心呢……你小时候也爱站这里看。”</div>
+      <div class="card-meta">只分享这一段原话 · 小林看不到前后文</div>`,
+      [b('只给她看这段','primary',9), b('改一下','secondary',9), b('不给她看','ghost',18)], '要把这段给小林看看吗？')}
+    ${composer('','live','不选也没关系，收起后会留在“等你决定”')}`),
+  why:[
+    '卡片固定在对话区最下侧、输入条上方；聊天滚动时卡片不动，减少误触。',
+    '卡片可以整张收起成“等你决定”托盘，点托盘能再打开；收起不是拒绝。',
+    '分享范围可见：只有引用的这一段原话，不默认共享整段聊天。',
+    '三色按钮固定语义：绿＝是，蓝＝更改，灰＝否；每轮最多一张卡。'
+  ],
+  edge:[
+    '折叠只影响界面，不改变分享选择；点“不给她看”才是静默拒绝。',
+    '点“不给她看”后，小林端不得出现任何“有内容未分享”的痕迹。',
+    '原话截取不能断章取义；不使用合成音色冒充老人。',
+    '“改一下”只改这一段，不进入整段记忆编辑。'
+  ]
+});
+
+/* 09 */
+F.push({
+  time:'15:12',
+  who:'老人端 · 提醒卡',
+  title:'从习惯提出来，但只按确认的计划执行',
+  screen: phone(`
+    ${elderTop()}
+    <div class="chat">${chip('已分享给小林 · 只这一段','ok')}${ai('换水的事，要不要提醒你？')}</div>
+    ${card('提醒','每周六 10:00 提醒你给鱼缸换水？',`
+      <div class="card-meta">你平常周末换水，最近老忘 · 钟点按你说的十点</div>`,
+      [b('好，每周六','primary',10), b('只要这一次','secondary',10), b('不用提醒','ghost',10)], '每周六提醒换水？')}
+    ${composer('','live','')}`),
+  why:[
+    '习惯只是候选：系统提出“每周六”，钟点必须由本人确认。',
+    '区分“每周六”和“只要这一次”，把重复范围交给老人决定。',
+    '三个选项对应三种结果：建立计划／单次执行／不建立。'
+  ],
+  edge:[
+    '不能从“平常周末”直接猜出 10:00，也不能规定养鱼方法或频率。',
+    '保存成功后才说“记下了”；通知受理、送达、本人知晓分别记录。',
+    '“不用提醒”不产生负罪感文案，不追问原因。'
+  ]
+});
+
+/* 10 */
+F.push({
+  time:'15:13',
+  who:'老人端 · 请求卡',
+  title:'明确求助才形成可接手的请求',
+  screen: phone(`
+    ${elderTop()}
+    <div class="chat">${chip('✓ 提醒已保存 · 每周六 10:00','ok')}</div>
+    ${card('请家人帮忙','让小林周末带一袋鱼粮？',`
+      <div class="card-meta">会告诉她这是你说的 · 她可以答应，也可以说这次来不了</div>`,
+      [b('发给她','primary',12), b('我自己买','secondary',12), b('先不发','ghost',11)], '让小林带一袋鱼粮？')}
+    ${composer('','live','')}`),
+  why:[
+    '只有明确请求才进入“需要你参与”，闲聊和分享不会自动变成请求。',
+    '接收人与内容在发送前可见，避免系统自行广播给所有亲属。',
+    '“我自己买”是另一条真实路径，不强迫老人把事交给子女。'
+  ],
+  edge:[
+    '不自动扩散到其他亲属；不发“已读”“未读”压力提示。',
+    '答应当作接手，不等于已经办好；办好也不等于老人满意。',
+    '后台保留严谨状态，前台用家庭能理解的话表达。'
+  ]
+});
+
+/* 11 */
+F.push({
+  time:'15:14',
+  who:'老人端 · 分支：先不回答',
+  title:'没决定的卡不丢，收进“等你决定”',
+  screen: phone(`
+    ${elderTop()}
+    <div class="today"><span class="tdot" style="background:#5a8f78"></span><span>最近安排 · 周六 10:00 给鱼缸换水</span></div>
+    <div class="chat">
+      ${ai('换水的提醒记下了。<br>鱼粮的事，等你决定要不要发给小林。')}
+      ${pill('✓ 已保存 · 每周六 10:00 会提醒','')}
+    </div>
+    <div class="tray" data-goto="10"><span class="tlabel">等你决定 · 1</span><span class="ttext">让小林带一袋鱼粮？</span><span class="tgo">›</span></div>
+    ${composer(12,'idle','没回应的卡会留在这里，不会重复弹')}`),
+  why:[
+    '未回答的卡片折成一条“等你决定”，既不消失也不反复弹窗。',
+    '“已保存”只在持久化成功后出现，和“正在整理”分开显示。',
+    '今天安排随计划建立而出现，成为可查询、可修改的入口。'
+  ],
+  edge:[
+    '本屏演示“先不回答”的走向；点“发给她”则直接进入周六的提醒，不经过托盘。',
+    '一直不回答就不会发给小林：她那边不会出现这个请求，也不会收到“有一件事没决定”的提示。',
+    '托盘最多保留 3 条，超出合并；不自动消失，老人读得慢。',
+    '关闭或重启后卡片仍在，直到回答或明确忽略。',
+    '不把托盘做成待办计数，不显示催促语气。'
+  ]
+});
+
+/* 12 */
+F.push({
+  time:'09:58',
+  who:'老人端 · 到点提醒',
+  title:'通知不写内容，打开后大字加播报',
+  screen: phone(`
+    <div class="rem">
+      <div class="rem-time">周六 · 09:58</div>
+      <div class="rem-title">给鱼缸<br>换水</div>
+      <div class="rem-sub">每周六 · 按你确认的安排</div>
+      <button class="rem-voice">🔊 听一遍</button>
+    </div>
+    <div class="actions pad">
+      ${b('已经弄好了','primary',13)}
+      ${b('晚点再说','secondary')}
+      ${b('今天不用了','ghost')}
+    </div>
+    <div class="fine center">提醒只在这个手机上响；没送到时，我会明确告诉你。</div>`, 'reminder'),
+  why:[
+    '锁屏通知只写“有一件事到时间了”，打开后才显示内容，减少旁人可见的隐私泄露。',
+    '全屏大字 + 可选播报，适配视力与操作能力差异。',
+    '三个选项覆盖“完成／推迟／本次不做”，都只作用于这一次。'
+  ],
+  edge:[
+    '通知受理 ≠ 送达 ≠ 本人知晓；手机离线、后台限制都要如实记录。',
+    '过期不重放，恢复联网不补响一串旧提醒。',
+    '用药类提醒只能基于已核对的现有安排，不推导剂量或补服。'
+  ]
+});
+
+/* 13 */
+F.push({
+  time:'09:59',
+  who:'老人端 · 本次反馈',
+  title:'完成这一次，不取消以后全部',
+  screen: phone(`
+    ${elderTop()}
+    <div class="chat">
+      ${ai('好，这次不催你了。<br>下周六 10:00 还会照常提醒。')}
+      ${me('知道了。')}
+      ${chip('本次已结束 · 计划还在','ok')}
+    </div>
+    <div class="actions pad">
+      ${b('好','primary',14)}
+      ${b('改以后的时间','secondary')}
+      ${b('以后别提醒了','ghost')}
+    </div>
+    ${composer('','idle','也可以直接说话回答')}`),
+  why:[
+    '本次执行、本次反馈与整组计划分开，避免“完成一次就全没了”。',
+    '明确告诉老人下一次仍会提醒，给出“以后别提醒了”的出口。',
+    '“已经弄好了”只记录为本人自报，不升级为“已核验完成”。'
+  ],
+  edge:[
+    '本屏走“每周六”分支；若第 9 屏选“只要这一次”，这里应显示“以后不再提醒”，不能写成还会提醒。',
+    '临时改一次时间不改写长期习惯；取消全部需要新的明确意愿。',
+    '自报完成不推断健康状况，也不据此判断是否漏服。',
+    '重复反馈幂等，不产生多条执行记录。'
+  ]
+});
+
+/* 14 */
+F.push({
+  time:'11:02',
+  who:'子女端 · 最近的生活',
+  title:'首页回答“妈妈在过怎样的生活”',
+  screen: phone(`
+    <div class="chead">
+      <div class="avatar">林</div>
+      <div class="cwho"><b>妈妈</b><span>最近一次分享 · 周三 15:11</span></div>
+      <div class="dots">···</div>
+    </div>
+    <div class="req" data-goto="16">
+      <span class="reqdot"></span>
+      <div class="reqtext"><b>妈妈想请你带一袋鱼粮</b><span class="reqsub"><span class="tag ask">明确请求</span>周三 15:13 · 还没定哪天带回</span></div>
+      <span class="reqgo">›</span>
+    </div>
+    <div class="csection">最近的生活</div>
+    <div class="cscroll">
+      <article class="note-card">
+        <div class="nhead"><b>鱼又活泼了</b><span class="tag quote">妈妈原话</span><span class="tag ai">AI 整理</span></div>
+        <div class="quote">“今天鱼又活泼起来了，前两天我还担心呢……你小时候也爱站这里看。”</div>
+        <div class="nmeta">周三 15:11 · 妈妈同意分享这一段</div>
+      </article>
+      <div class="cempty">这周没有更多分享了。</div>
+      <button class="linkrow" data-goto="15"><span>打电话前，看一眼</span><span>›</span></button>
+      <div class="taglegend">
+        <span><i class="dot g"></i>原话</span>
+        <span><i class="dot b"></i>安排</span>
+        <span><i class="dot y"></i>回忆</span>
+        <span><i class="dot o"></i>请求</span>
+        <span><i class="dot n"></i>AI 整理</span>
+      </div>
+    </div>`, 'child'),
+  why:[
+    '子女首页首先是生活，不是待办；请求只在确实存在时以一条横幅出现。',
+    '近况带时间、来源、“妈妈原话”和 AI 整理标记，摘要不冒充事实。',
+    '没有新内容时如实空着，不凑日报、不发红点。'
+  ],
+  edge:[
+    '不展示完整聊天、音频与私人记忆；原话片段受单独授权与保留期限约束。',
+    '不生成孝心评分、回应倒计时或家庭成员比较。',
+    '请求横幅不是“未完成关怀”考核，点开才进入处理。'
+  ]
+});
+
+/* 15 */
+F.push({
+  time:'11:03',
+  who:'子女端 · 下次聊什么',
+  title:'联系前的回顾，是可忽略的线索',
+  screen: phone(`
+    <div class="chead back">
+      <button class="cback" data-goto="14">‹</button>
+      <div class="cwho"><b>打电话前，看一眼</b><span>只显示妈妈愿意让你看到的内容</span></div>
+    </div>
+    <div class="cscroll">
+      <article class="clue">
+        <div class="clue-h">鱼后来怎么样了？</div>
+        <p>妈妈周三说鱼又活泼了，今天说好些了。可以问问后来怎么样。</p>
+        <div class="clue-m"><span class="tag quote">来自妈妈原话</span>周三 15:11</div>
+      </article>
+      <article class="clue plan">
+        <div class="clue-h">周六的换水</div>
+        <p>系统里记着周六 10:00 换水。妈妈说这次已经弄好了。</p>
+        <div class="clue-m"><span class="tag plan">已确认安排</span></div>
+      </article>
+      <article class="clue memory">
+        <div class="clue-h">你小时候看鱼</div>
+        <p>妈妈提到过，也同意让你看到这段。</p>
+        <div class="clue-m"><span class="tag memory">家庭回忆</span></div>
+      </article>
+      <p class="cfine">线索可以不用，也不会自动发出去。</p>
+    </div>
+    <div class="cfootbar"><button class="btn ghost" data-goto="14">先不看了</button></div>`, 'child'),
+  why:[
+    '在“准备联系”这一刻提供上下文，而不是每天推一份摘要。',
+    '每条线索都带来源：妈妈原话、已确认安排、家庭回忆，可核对。',
+    '线索可以忽略，不自动生成问候模板，也不形成待办。'
+  ],
+  edge:[
+    '只检索该亲属可见内容；私人记忆不能借“推荐话题”旁路泄露。',
+    '不假装读过微信或知道外部通话内容。',
+    '不替子女判断妈妈的情绪或心理状态。'
+  ]
+});
+
+/* 16 */
+F.push({
+  time:'11:04',
+  who:'子女端 · 需要你参与',
+  title:'只有明确请求才进入接手机制',
+  screen: phone(`
+    <div class="chead back">
+      <button class="cback" data-goto="14">‹</button>
+      <div class="cwho"><b>需要你参与</b><span>妈妈明确说出口的事</span></div>
+    </div>
+    <div class="cscroll">
+      <article class="ask">
+        <div class="card-kicker"><span>妈妈想请你</span><span class="tag ask" style="margin-left:auto">明确请求</span></div>
+        <div class="ask-t">周末回来时，<br>带一袋鱼粮</div>
+        <div class="quote">“鱼粮快没了，想请小林回来时带一袋。”</div>
+        <div class="note-m">周三 15:13 说的 · 没说牌子 · 可以先问一句</div>
+      </article>
+      <div class="cempty">其他：现在没有别的事。</div>
+    </div>
+    <div class="cfootbar">
+      ${b('这周末带回去','primary')}
+      ${b('换个时间','secondary')}
+      ${b('这次来不了','ghost')}
+    </div>`, 'child'),
+  why:[
+    '前台用“妈妈想请你……”的自然表达，后台保留接手、协商与失败恢复状态。',
+    '三个选项都是真实选择：答应、协商时间、说明来不了，不制造只能答应的压力。',
+    '空态“现在没有别的事”让子女知道没有欠着的任务。'
+  ],
+  edge:[
+    '本屏对应第 10 屏选“发给她”的分支；选“我自己买”或“先不发”时，小林端不会出现这个请求。',
+    '答应 ≠ 已经办好；办好 ≠ 老人满意，三类状态分别记录。',
+    '不设孝心排名、未关怀倒计时或家庭绩效。',
+    '外部电话与微信不自动记成“已联系”，只有本人反馈才算。'
+  ]
+});
+
+/* 17 */
+F.push({
+  time:'15:20',
+  who:'老人端 · 收到留言',
+  title:'子女的真实回应，标明是谁说的',
+  screen: phone(`
+    ${elderTop()}
+    <div class="chat">
+      ${ai('小林给你留了句话。','助理 · 刚刚')}
+      <div class="msg in" style="align-items:flex-start">
+        <div class="badge" style="font-size:11.5px;background:#eef3fb;border:1px solid #c6d5ee;color:#26509a;border-radius:999px;padding:4px 9px;margin-bottom:2px">小林本人 · 15:20</div>
+        <div class="bubble" style="background:#fff;border:1px solid #c9d9e8;border-bottom-left-radius:6px">我还记得小时候看鱼，周日回来一起看看。</div>
+      </div>
+    </div>
+    <div class="actions pad">
+      ${b('念给我听','primary')}
+      ${b('我自己看','secondary')}
+      ${b('先不回','ghost')}
+    </div>
+    ${composer('','idle','想回她一句，点麦克风或打字')}`),
+  why:[
+    '子女可以主动留下真实回应，而不是系统代写关心。',
+    '“小林本人 · 15:20”明确发送者与时间，AI 不冒充、不代发。',
+    '老人可以选择听、看或先不回，接收方式由老人控制。'
+  ],
+  edge:[
+    'AI 草稿必须由子女本人确认才发送，草稿不算已发送。',
+    '“已发送”“已转达”“老人已知晓”分开记录，没回应不编造。',
+    '不回不产生提醒升级或向其他亲属扩散。'
+  ]
+});
+
+/* 18 */
+F.push({
+  time:'15:24',
+  who:'边界 · 拒绝共享',
+  title:'不分享是静默的，不留旁路提示',
+  screen: phone(`
+    ${elderTop()}
+    <div class="chat">
+      ${me('这段别存，也别告诉小林。')}
+      ${ai('好。这段不存，也不给她看。')}
+      ${chip('已按你说的处理','ok')}
+      ${ai('刚才鱼的事，我们就聊到这儿。')}
+    </div>
+    ${composer(19,'idle','')}`),
+  why:[
+    '拒绝保存与拒绝分享分开处理：这一段既不进长期记忆，也不进家庭投影。',
+    '界面只确认“已按你说的处理”，不展示“已隐藏 N 条”之类的计数。',
+    '老人仍然可以继续聊，拒绝不结束对话。'
+  ],
+  edge:[
+    '对应第 8 屏“不给她看”的分支；这里是“不存 + 不分享”的更强表述。',
+    '小林端不得出现“有一条内容未分享”“妈妈拒绝分享”等旁路提示。',
+    '派生内容（摘要、话题、索引、通知）都不得重新泄露这段。',
+    '已看见的信息无法承诺收回，这一点在撤销时要说清。'
+  ],
+  contrast:`<div class="mini"><div class="mini-label">小林端 · 最近的生活</div><div class="mini-body">与上一屏完全相同。<br>没有“有内容未分享”的提示，也没有新的红点。</div></div>`
+});
+
+/* 19 */
+F.push({
+  time:'15:26',
+  who:'边界 · 撤销分享',
+  title:'撤销作用于派生内容，但不回收已看见的',
+  screen: phone(`
+    ${elderTop()}
+    <div class="chat">
+      ${me('还是别给她看了。')}
+      ${ai('好，我把那段从她能看的地方拿掉了。')}
+      ${ai('她刚才要是已经看见了，我没法收回来。')}
+      ${chip('已撤销 · 不收回已经看到的','amber')}
+    </div>
+    ${composer(20,'idle','')}`),
+  why:[
+    '撤销要说清作用范围：子女端不再显示，但已经看过的内容无法收回。',
+    '如实告知限制，比承诺“彻底删除”更可信。',
+    '撤销立即生效，不需要等待后台任务完成才改界面。'
+  ],
+  edge:[
+    '对应已分享之后的撤销；第 8 屏从一开始选“不给她看”不会经过这里。',
+    '旧链接、缓存预览、话题结果与索引都要失效或受限。',
+    '撤销不删除老人自己的记忆，除非本人另行要求。',
+    '不向子女发送“内容被撤回”的提示，避免二次泄露。'
+  ],
+  contrast:`<div class="mini"><div class="mini-label">小林端 · 最近的生活</div><div class="mini-body">那条近况消失，显示“这周没有更多分享了”。<br>她此前已经读到的内容不做回收承诺。</div></div>`
+});
+
+/* 20 */
+F.push({
+  time:'15:28',
+  who:'边界 · 保存失败',
+  title:'失败就说失败，别用一句“记下了”糊过去',
+  screen: phone(`
+    ${elderTop()}
+    <div class="chat">
+      ${me('周六十点提醒我换水。')}
+      ${ai('网络不太好，这条还没保存上。')}
+      ${chip('未保存 · 到点不会提醒','amber')}
+      ${ai('你刚才说的我先留着，等会儿再试一次。')}
+    </div>
+    <div class="actions pad">
+      ${b('再试一次','primary')}
+      ${b('改个时间','secondary',9)}
+      ${b('等会儿再说','ghost')}
+    </div>
+    ${composer('','idle','也可以打字把时间说清楚')}`),
+  why:[
+    '保存失败必须明说，并给出可执行的下一步：重试、改时间、稍后。',
+    '草稿在允许范围内保留，不让老人从头再说一遍。',
+    '“未保存 · 到点不会提醒”直接说明后果，而不是只说“网络错误”。'
+  ],
+  edge:[
+    '对应第 9／11 屏的保存失败分支；主路径不会停在这里。',
+    '不以模型回复作为成功证据；唯一任务约束与有限重试由业务服务保证。',
+    '重启后不重复执行、不补响过期提醒；恢复时以最新版本为准。',
+    '失败状态不能在小林端表现为“已经有安排”。'
+  ],
+  contrast:`<div class="mini"><div class="mini-label">小林端 · 最近的生活</div><div class="mini-body">没有新内容；提醒计划未建立，到点不会响。<br>系统不把“说过”当成“已安排”。</div></div>`
+});
+
+/* 21 */
+F.push({
+  time:'11:05',
+  who:'全流程总览',
+  title:'六段流程，一张图交代顺序与分支',
+  screen: phone(`
+    <div class="appbar"><div class="brand">全流程</div><span class="ghostlink">21 屏</span></div>
+    <p class="ovlead">点任意一行，跳到那一屏。绿色＝是，蓝色＝更改，灰色＝否。</p>
+    <div class="ovscroll">
+      <div class="ovgroup">
+        <div class="ovlabel">01–03 · 第一次用</div>
+        <button class="ovrow" data-goto="1"><i>01</i>打开：点一下就说话<span>›</span></button>
+        <button class="ovrow" data-goto="2"><i>02</i>麦克风与录音说明<span>›</span></button>
+        <button class="ovrow" data-goto="3"><i>03</i>让家人看一点（默认关，可跳过）<span>›</span></button>
+      </div>
+      <div class="ovarrow">↓</div>
+      <div class="ovgroup">
+        <div class="ovlabel">04–07 · 闲聊与后台整理</div>
+        <button class="ovrow" data-goto="4"><i>04</i>对话即首页<span>›</span></button>
+        <button class="ovrow" data-goto="5"><i>05</i>长语音、插话<span>›</span></button>
+        <button class="ovrow" data-goto="6"><i>06</i>改口：九点 → 十点<span>›</span></button>
+        <button class="ovrow" data-goto="7"><i>07</i>“听到了”与后台整理<span>›</span></button>
+      </div>
+      <div class="ovarrow">↓</div>
+      <div class="ovgroup">
+        <div class="ovlabel">08–11 · 三张卡＋未回答分支</div>
+        <button class="ovrow" data-goto="8"><i>08</i>分享这一段？<span>›</span></button>
+        <button class="ovrow" data-goto="9"><i>09</i>每周六提醒换水？<span>›</span></button>
+        <button class="ovrow" data-goto="10"><i>10</i>请小林带鱼粮？<span>›</span></button>
+        <button class="ovrow" data-goto="11"><i>11</i>已保存＋等你决定<span>›</span></button>
+      </div>
+      <div class="ovarrow">↓</div>
+      <div class="ovgroup">
+        <div class="ovlabel">12–13 · 到点</div>
+        <button class="ovrow" data-goto="12"><i>12</i>到点提醒（大字＋播报）<span>›</span></button>
+        <button class="ovrow" data-goto="13"><i>13</i>本次完成，不取消以后<span>›</span></button>
+      </div>
+      <div class="ovarrow">↓</div>
+      <div class="ovgroup">
+        <div class="ovlabel">14–17 · 家人</div>
+        <button class="ovrow" data-goto="14"><i>14</i>最近的生活<span>›</span></button>
+        <button class="ovrow" data-goto="15"><i>15</i>下次聊什么<span>›</span></button>
+        <button class="ovrow" data-goto="16"><i>16</i>需要你参与<span>›</span></button>
+        <button class="ovrow" data-goto="17"><i>17</i>留言回到老人端<span>›</span></button>
+      </div>
+      <div class="ovarrow">↓</div>
+      <div class="ovgroup">
+        <div class="ovlabel">18–20 · 边界</div>
+        <button class="ovrow" data-goto="18"><i>18</i>拒绝共享：无旁路提示<span>›</span></button>
+        <button class="ovrow" data-goto="19"><i>19</i>撤销：不收回已看见<span>›</span></button>
+        <button class="ovrow" data-goto="20"><i>20</i>保存失败：明说未保存<span>›</span></button>
+      </div>
+    </div>`),
+  why:[
+    '把顺序、分支与颜色约定收在一屏，方便走查时快速定位。',
+    '每段都有明确边界：第一次用可跳过、闲聊不产任务、三张卡每轮最多一张、家人端无待办时仍有用。',
+    '总览是原型索引，不是已实现的功能清单。'
+  ],
+  edge:[
+    '这不是已上线流程，也不是验收通过证据；每屏的边界见对应说明。',
+    '18–20 是同一套能力的分支，不是主路径的装饰。',
+    '演示定时触发、回放或模拟数据时必须显著标识。'
+  ]
+});
+
+/* ---------------------------- 渲染 ---------------------------- */
+const screenEl = document.getElementById('screen');
+const notesEl  = document.getElementById('notes');
+const counter  = document.getElementById('counter');
+const bar      = document.getElementById('bar');
+const device   = document.getElementById('device');
+const wrap     = document.getElementById('wrap');
+const zoomEl   = document.getElementById('zoom');
+const stage    = document.querySelector('.stage');
+const topbar   = document.querySelector('.topbar');
+const prevBtn  = document.getElementById('prev');
+const nextBtn  = document.getElementById('next');
+const playBtn  = document.getElementById('play');
+const notesBtn = document.getElementById('notesBtn');
+const backdrop = document.getElementById('backdrop');
+
+let i = 0;
+let timer = null;
+const mobile = () => window.matchMedia('(max-width:820px)').matches;
+
+function render(){
+  const f = F[i];
+  screenEl.innerHTML = f.screen.split('{{T}}').join(f.time || '15:02');
+  counter.textContent = `${String(i+1).padStart(2,'0')} / ${F.length}`;
+  bar.style.width = ((i+1)/F.length*100).toFixed(1)+'%';
+  prevBtn.disabled = i===0;
+  nextBtn.disabled = i===F.length-1;
+  prevBtn.style.opacity = i===0 ? .35 : 1;
+  nextBtn.style.opacity = i===F.length-1 ? .35 : 1;
+
+  notesEl.innerHTML = `
+    <div class="notes-head">
+      <span class="stepno">${String(i+1).padStart(2,'0')}</span>
+      <div><div class="nk">${f.who}</div><h2>${f.title}</h2></div>
+      <button class="nsclose" id="notesCloseTop" aria-label="收起说明">×</button>
+    </div>
+    <div class="nsec"><h3>设计意图</h3><ul>${f.why.map(x=>`<li>${x}</li>`).join('')}</ul></div>
+    <div class="nsec"><h3>边界与状态</h3><ul>${f.edge.map(x=>`<li>${x}</li>`).join('')}</ul></div>
+    ${f.contrast ? `<div class="ncontrast">${f.contrast}</div>` : ''}
+    ${f.who.indexOf('子女端')===0 ? `<div class="nsec"><h3>亲属端标签</h3>
+      <div class="nlegend">
+        <div><i class="sw" style="background:#2f8064"></i>妈妈原话 / 生活近况</div>
+        <div><i class="sw" style="background:#2f5f8a"></i>已确认安排</div>
+        <div><i class="sw" style="background:#a87b1e"></i>家庭回忆</div>
+        <div><i class="sw" style="background:#b4532a"></i>明确请求</div>
+        <div><i class="sw" style="background:#8b9aa7"></i>AI 整理</div>
+      </div>
+    </div>` : ''}
+    <div class="nsec"><h3>按钮颜色约定</h3>
+      <div class="nlegend">
+        <div><i class="sw g"></i>是 / 同意 / 直接做</div>
+        <div><i class="sw b"></i>更改 / 换个方式 / 换个时间</div>
+        <div><i class="sw n"></i>否 / 不用 / 先不做</div>
+      </div>
+    </div>
+    <p class="nfoot">证据状态：设计原型，人物、对话与时间为虚构；未实现、未验证。<br>本页不是功能清单，也不是验收通过材料。</p>`;
+  if(mobile()) notesEl.insertAdjacentHTML('beforeend', '<button class="btn ghost notes-close" id="notesClose">收起说明</button>');
+  notesEl.scrollTop = 0;
+
+  const nc = document.getElementById('notesClose');
+  if(nc) nc.addEventListener('click', closeNotes);
+  const nt = document.getElementById('notesCloseTop');
+  if(nt) nt.addEventListener('click', closeNotes);
+  if(!mobile()) requestAnimationFrame(fit);
+  try{ history.replaceState(null,'','#'+(i+1)); }catch(e){}
+}
+
+function go(n){
+  i = Math.max(0, Math.min(F.length-1, n));
+  render();
+}
+function next(){ go(i+1); }
+function prev(){ go(i-1); }
+
+prevBtn.addEventListener('click', prev);
+nextBtn.addEventListener('click', next);
+document.addEventListener('keydown', e=>{
+  if(e.key==='ArrowRight' || e.key===' '){ e.preventDefault(); next(); }
+  if(e.key==='ArrowLeft'){ e.preventDefault(); prev(); }
+  if(e.key==='Escape'){ closeNotes(); }
+});
+screenEl.addEventListener('click', e=>{
+  const col = e.target.closest('[data-collapse]');
+  if(col){ col.closest('.shelf').classList.add('collapsed'); return; }
+  const exp = e.target.closest('[data-expand]');
+  if(exp){ exp.closest('.shelf').classList.remove('collapsed'); return; }
+  const t = e.target.closest('[data-goto]');
+  if(!t) return;
+  go(parseInt(t.dataset.goto,10)-1);
+});
+
+/* 自动播放 */
+playBtn.addEventListener('click', ()=>{
+  if(timer){ stopPlay(); return; }
+  playBtn.setAttribute('aria-pressed','true');
+  playBtn.textContent = '⏸ 暂停';
+  timer = setInterval(()=>{
+    if(i >= F.length-1){ stopPlay(); return; }
+    next();
+  }, 4200);
+});
+function stopPlay(){
+  clearInterval(timer); timer=null;
+  playBtn.setAttribute('aria-pressed','false');
+  playBtn.textContent = '▶ 自动';
+}
+
+/* 说明面板（手机） */
+function openNotes(){ notesEl.classList.add('open'); backdrop.classList.add('open'); }
+function closeNotes(){ notesEl.classList.remove('open'); backdrop.classList.remove('open'); }
+notesBtn.addEventListener('click', ()=> notesEl.classList.contains('open') ? closeNotes() : openNotes());
+backdrop.addEventListener('click', closeNotes);
+
+/* 手势 */
+let tx=0, ty=0;
+screenEl.addEventListener('touchstart', e=>{ const t=e.changedTouches[0]; tx=t.clientX; ty=t.clientY; }, {passive:true});
+screenEl.addEventListener('touchend', e=>{
+  const t=e.changedTouches[0];
+  const dx=t.clientX-tx, dy=t.clientY-ty;
+  if(Math.abs(dx)>56 && Math.abs(dx)>Math.abs(dy)*1.6){ dx<0 ? next() : prev(); }
+}, {passive:true});
+
+/* 桌面缩放 */
+function fit(){
+  if(mobile()){ device.style.transform=''; wrap.style.width=''; wrap.style.height=''; return; }
+  const W=430, H=933;
+  const availH = window.innerHeight - topbar.offsetHeight - 118;
+  const notesW = notesEl.offsetWidth ? notesEl.offsetWidth + 26 : 0;
+  const availW = stage.clientWidth - notesW - 32;
+  const s = Math.max(.4, Math.min(1, availH/H, availW/W));
+  device.style.transform = `scale(${s})`;
+  wrap.style.width = (W*s)+'px';
+  wrap.style.height = (H*s)+'px';
+  zoomEl.textContent = Math.round(s*100)+'%';
+}
+window.addEventListener('resize', fit);
+window.addEventListener('orientationchange', ()=>setTimeout(fit,120));
+
+/* 初始化 */
+function fromHash(){
+  const h = parseInt(location.hash.replace('#',''),10);
+  if(h>=1 && h<=F.length) go(h-1);
+}
+window.addEventListener('hashchange', fromHash);
+const hash = parseInt(location.hash.replace('#',''),10);
+if(hash>=1 && hash<=F.length) i = hash-1;
+render();
+requestAnimationFrame(fit);
+</script>
+</body>
+</html>
