@@ -1,0 +1,91 @@
+/* Additive styles: original Archify toolbar, palettes and export scripts stay intact. */
+body { padding: 28px clamp(14px, 2.5vw, 38px); }
+.container { max-width: 1680px; }
+.header { padding-right: 210px; margin-bottom: 22px; }
+.header h1 { font-size: 21px; }
+.header .subtitle { font-size: 11px; line-height: 1.8; }
+.arch-shell { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+.arch-evidence { color: var(--text-muted); font-size: 11px; line-height: 1.9; border-left: 2px solid var(--cloud-stroke); background: var(--cloud-fill); padding: 10px 14px; margin-bottom: 15px; }
+.arch-evidence strong { color: var(--cloud-stroke); }
+.arch-evidence a { color: var(--frontend-stroke); text-decoration: none; margin-left: 10px; }
+.arch-control-panel { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
+.arch-controls { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; }
+.arch-shell button, .arch-shell select { font: inherit; color: var(--text); background: var(--mask); border: 1px solid var(--panel-border); border-radius: 6px; padding: 8px 11px; cursor: pointer; font-size: 11px; }
+.arch-shell button:hover { border-color: var(--backend-stroke); background: var(--backend-fill); }
+.arch-shell button[aria-pressed='true'] { border-color: var(--backend-stroke); background: var(--backend-fill); color: var(--backend-stroke); }
+.arch-shell :focus-visible { outline: 2px solid var(--frontend-stroke); outline-offset: 3px; }
+.arch-shell label { color: var(--text-muted); font-size: 11px; display: flex; align-items: center; gap: 5px; }
+.arch-shell input { accent-color: var(--backend-stroke); }
+.arch-controls .arch-space { flex: 1; }
+.arch-clock { font: 10px ui-monospace, monospace; color: var(--text-muted); min-width: 50px; }
+.arch-progress { width: 100%; height: 2px; margin-top: 13px; border: 0; background: var(--panel-border); display: block; }
+.arch-progress::-webkit-progress-bar { background: var(--panel-border); }
+.arch-progress::-webkit-progress-value { background: var(--backend-stroke); }
+.arch-progress::-moz-progress-bar { background: var(--backend-stroke); }
+.arch-tabs { display: flex; flex-wrap: wrap; gap: 5px; margin: 12px 0 10px; }
+.arch-tabs button { border: 0; color: var(--text-muted); font-size: 10px; padding: 7px 9px; background: transparent; }
+.arch-tabs button[aria-current='step'] { color: var(--backend-stroke); background: var(--backend-fill); }
+.arch-tabs .arch-branch { margin-left: 4px; color: var(--security-stroke); }
+.arch-help { font-size: 10px; line-height: 1.8; color: var(--text-muted); }
+.arch-now { display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, .55fr); gap: 25px; align-items: center; padding: 16px 18px; margin-bottom: 12px; border-left: 2px solid var(--backend-stroke); background: var(--backend-fill); }
+.arch-now .arch-kicker { color: var(--backend-stroke); font: 9px ui-monospace, monospace; letter-spacing: .08em; }
+.arch-now h2 { font-size: 18px; font-weight: 500; line-height: 1.6; margin: 5px 0; }
+.arch-now p { color: var(--text-muted); font-size: 12px; line-height: 1.9; }
+.arch-now blockquote { border-left: 1px solid var(--backend-stroke); padding-left: 16px; font-size: 13px; line-height: 1.9; }
+.arch-now cite { display: block; font-style: normal; color: var(--text-muted); font-size: 9px; margin-top: 5px; }
+.arch-shell .diagram-container { border-radius: 10px; padding: 8px; }
+.arch-scale { min-width: 1000px; width: 100%; }
+.arch-scale svg { min-width: 0; }
+.arch-reading { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+.arch-reading article { padding: 15px 17px; border: 1px solid var(--panel-border); border-radius: 8px; background: var(--panel); }
+.arch-reading h3 { color: var(--backend-stroke); font-size: 10px; font-weight: 500; margin-bottom: 7px; }
+.arch-reading p { color: var(--text-muted); font-size: 12px; line-height: 1.85; }
+.arch-rule { padding: 14px 17px; border-left: 2px solid var(--security-stroke); background: var(--security-fill); margin-top: 12px; font-size: 11px; color: var(--text-muted); line-height: 1.9; }
+.arch-rule strong { font-size: 10px; color: var(--security-stroke); margin-right: 14px; }
+.arch-links { margin-top: 15px; font-size: 11px; color: var(--text-muted); line-height: 1.9; }
+.arch-links a { color: var(--frontend-stroke); }
+.arch-shell:fullscreen { background: var(--bg); overflow: auto; padding: 18px; }
+.arch-shell:fullscreen .arch-evidence { display: none; }
+.arch-shell:fullscreen .arch-now { padding: 10px 15px; }
+.arch-shell:fullscreen .arch-now h2 { font-size: 15px; }
+.arch-shell:fullscreen .arch-now p { display: none; }
+/* These c-* selectors are deliberately included by the native SVG exporter. */
+svg.c-architecture { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, 'PingFang SC', 'Microsoft YaHei', monospace; }
+.c-flow-edge, .c-flow-label { opacity: .14; transition: opacity .25s ease; }
+.c-flow-dot { opacity: 0; }
+.c-flow-node { opacity: .38; transition: opacity .25s ease; }
+.c-flow-edge.is-active, .c-flow-dot.is-active, .c-flow-label.is-active, .c-flow-node.is-active { opacity: 1; }
+.c-flow-node .t-primary { font-size: 12px; }
+.c-flow-node[data-node='elder'] .t-primary, .c-flow-node[data-node='assistant'] .t-primary, .c-flow-node[data-node='agent'] .t-primary, .c-flow-node[data-node='family'] .t-primary { font-size: 14px; }
+.c-flow-node.is-active > rect:not(.c-mask) { stroke-width: 2; }
+.c-flow-node.is-blocked { opacity: .85; }
+.c-flow-node.is-blocked > rect:not(.c-mask) { stroke: var(--security-stroke); stroke-dasharray: 4,4; }
+.c-flow-badge { fill: var(--backend-stroke); font-size: 8px; }
+.c-flow-node.is-blocked .c-flow-badge { fill: var(--security-stroke); }
+svg.c-flow-paused .a-default, svg.c-flow-paused .a-emphasis, svg.c-flow-paused .a-dashed, svg.c-flow-paused .a-security { animation-play-state: paused; }
+@media (max-width: 900px) {
+  .arch-now { grid-template-columns: 1fr; gap: 10px; }
+  .arch-now blockquote { font-size: 12px; }
+  .arch-reading { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  body { padding: 14px; }
+  .header { padding-right: 0; }
+  .header h1 { font-size: 17px; line-height: 1.7; }
+  .arch-controls { gap: 7px; }
+  .arch-controls .arch-space { display: none; }
+  .arch-shell label, .arch-shell button, .arch-shell select { font-size: 10px; }
+  .arch-now { padding: 13px; }
+  .arch-now h2 { font-size: 16px; }
+  .arch-tabs .arch-branch { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .c-flow-edge, .c-flow-label, .c-flow-node { transition: none; }
+  .pulse-dot { animation: none; }
+}
+@media print {
+  .arch-controls, .arch-tabs, .arch-help, .arch-progress { display: none; }
+  .arch-now, .arch-reading article { break-inside: avoid; }
+  .arch-scale { min-width: 0; width: 100% !important; }
+  .arch-evidence a { display: none; }
+}

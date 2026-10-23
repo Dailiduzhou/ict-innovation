@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "AgeGuard · 从一句闲聊到家人参与",
+    "subtitle": "老人 ↔ AI 语音助理 ｜ 后台 Agent + 受控业务 ｜ 授权家庭连接 · 架构设计与情景动画，非已接通系统",
+    "viewBox": [1520, 950]
+  },
+  "components": [
+    { "id": "elder", "type": "external", "label": "01 老人 · 陈阿姨", "sublabel": "说话、补充、改口、确认", "tag": "手机即可独立使用", "pos": [40, 230], "size": [180, 90] },
+    { "id": "assistant", "type": "frontend", "label": "02 AI 助理 · 小安", "sublabel": "实时倾听、澄清、统一播报", "tag": "交互角色 / 内含输出协调", "pos": [300, 230], "size": [210, 90] },
+    { "id": "agent", "type": "backend", "label": "03 后台 Agent", "sublabel": "检索背景、整理候选、有限编排", "tag": "与对话并行 / 不绕过业务校验", "pos": [610, 230], "size": [210, 90] },
+    { "id": "family", "type": "external", "label": "04 家属 · 小林", "sublabel": "了解近况、留言、具体帮助", "tag": "不拥有妈妈私人记忆的读权限", "pos": [1240, 230], "size": [180, 90] },
+    { "id": "events", "type": "messagebus", "label": "轮次与修订事件", "sublabel": "最终转写 + 来源 + 修订号", "pos": [610, 80], "size": [210, 70] },
+    { "id": "gateway", "type": "security", "label": "确定性业务网关", "sublabel": "身份·权限·确认·版本·幂等", "tag": "模型自填 confirmed 不构成授权", "pos": [610, 450], "size": [210, 90] },
+    { "id": "memory", "type": "database", "label": "个人长期记忆", "sublabel": "来源、时间、状态、修订关系", "tag": "仅陈阿姨 / 按用户隔离", "pos": [300, 450], "size": [210, 90] },
+    { "id": "reminder", "type": "cloud", "label": "个人提醒与调度", "sublabel": "周六 10:00 / 单次 / 自报反馈", "tag": "确定性程序到时执行 / 非模型轮询", "pos": [610, 690], "size": [210, 90] },
+    { "id": "projection", "type": "database", "label": "授权近况与话题", "sublabel": "鱼的近况、愿意分享的原话", "tag": "窄范围字段 / 不含整段聊天", "pos": [950, 450], "size": [210, 90] },
+    { "id": "request", "type": "messagebus", "label": "明确求助与本人留言", "sublabel": "带鱼粮请求 + 小林主动留言", "tag": "只有明确求助才有接手与办结", "pos": [950, 690], "size": [210, 90] },
+    { "id": "portal", "type": "frontend", "label": "家属入口", "sublabel": "近况 / 话题 / 需要你参与", "tag": "每次读取与输出复核授权", "pos": [1240, 450], "size": [180, 90] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "平台后台 / 受控处理", "wraps": ["events", "agent", "gateway", "reminder"] },
+    { "kind": "security-group", "label": "授权家庭协作区 / 非私人记忆副本", "wraps": ["projection", "request", "portal"] }
+  ],
+  "connections": [
+    { "from": "elder", "to": "assistant", "label": "语音", "variant": "emphasis", "fromSide": "right", "toSide": "left", "labelAt": [260, 261] },
+    { "from": "assistant", "to": "elder", "label": "语音回答 / 追问确认", "variant": "emphasis", "fromSide": "bottom", "toSide": "bottom", "via": [[405, 370], [130, 370]], "labelAt": [260, 357] },
+    { "from": "assistant", "to": "events", "label": "轮次提交 / 改口事件", "variant": "dashed", "fromSide": "top", "toSide": "left", "via": [[405, 115]], "labelAt": [503, 100] },
+    { "from": "events", "to": "agent", "label": "异步触发", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "labelAt": [755, 194] },
+    { "from": "agent", "to": "gateway", "label": "读记忆 / 提交候选", "variant": "security", "fromSide": "bottom", "toSide": "top", "labelAt": [775, 391] },
+    { "from": "gateway", "to": "agent", "label": "来源 / 业务回执", "variant": "default", "fromSide": "right", "toSide": "right", "via": [[915, 495], [915, 275]], "labelAt": [920, 356] },
+    { "from": "gateway", "to": "memory", "label": "校验后读写", "variant": "security", "fromSide": "left", "toSide": "right", "labelAt": [559, 480] },
+    { "from": "memory", "to": "gateway", "label": "命中来源 / 新版本", "variant": "dashed", "fromSide": "top", "toSide": "top", "via": [[405, 405], [715, 405]], "labelAt": [534, 399] },
+    { "from": "agent", "to": "assistant", "label": "回复上下文", "variant": "default", "fromSide": "left", "toSide": "right", "labelAt": [560, 260] },
+    { "from": "gateway", "to": "reminder", "label": "本人确认后保存", "variant": "security", "fromSide": "bottom", "toSide": "top", "labelAt": [770, 622] },
+    { "from": "reminder", "to": "gateway", "label": "到时结果 / 本次反馈", "variant": "dashed", "fromSide": "left", "toSide": "left", "via": [[565, 735], [565, 495]], "labelAt": [505, 640] },
+    { "from": "gateway", "to": "projection", "label": "授权字段", "variant": "security", "fromSide": "right", "toSide": "left", "labelAt": [887, 480] },
+    { "from": "projection", "to": "portal", "label": "近况", "variant": "emphasis", "fromSide": "right", "toSide": "left", "labelAt": [1200, 480] },
+    { "from": "portal", "to": "family", "label": "授权内容", "variant": "emphasis", "fromSide": "top", "toSide": "left", "via": [[1330, 395], [1200, 395], [1200, 275]], "labelAt": [1200, 355] },
+    { "from": "family", "to": "portal", "label": "查看 / 本人操作", "variant": "default", "fromSide": "bottom", "toSide": "top", "labelAt": [1380, 380] },
+    { "from": "gateway", "to": "request", "label": "请求 / 留言入账", "variant": "security", "fromSide": "right", "toSide": "left", "via": [[885, 495], [885, 735]], "labelAt": [894, 630] },
+    { "from": "request", "to": "portal", "label": "待回应 / 接手 / 反馈", "variant": "dashed", "fromSide": "right", "toSide": "bottom", "via": [[1200, 735], [1200, 590], [1330, 590]], "labelAt": [1260, 610] },
+    { "from": "portal", "to": "gateway", "label": "小林提交留言、接手、完成反馈 / 只记录有来源的本人操作", "variant": "emphasis", "fromSide": "right", "toSide": "right", "via": [[1470, 495], [1470, 840], [855, 840], [855, 495]], "labelAt": [1125, 832] }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "AI 助理与 Agent 是职责，不强制两个模型", "items": ["AI 助理负责听、说、澄清、打断与统一播报", "后台 Agent 根据事件检索背景、整理候选、有界调用工具", "二者可以并行；动画不证明真实并行或全双工已经实现"] },
+    { "dot": "rose", "title": "三个出口，三种不同的条件", "items": ["个人记忆：保留设置、来源、用户隔离、修订与删除约束", "提醒：明确确认与当前版本，成功保存才播报", "家庭内容：指定接收人与最小范围，拒绝分享不外发"] },
+    { "dot": "amber", "title": "家属看到生活，不只看到待办", "items": ["近况与可聊话题不要求接手或办结", "明确求助：等待回应 → 接手 → 家属反馈 → 老人确认", "留言明确发送者；自报不是客观核验，未回应不编造回复"] }
+  ]
+}

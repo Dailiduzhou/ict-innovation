@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "AgeGuard · 把生活接着聊",
+    "subtitle": "完整情景演示 / 私有记忆 · 受控提醒 · 授权家庭连接 / 全部业务事件为模拟",
+    "viewBox": [820, 1160]
+  },
+  "participants": [
+    { "id": "elder", "type": "frontend", "label": "老人", "sublabel": "模拟身份 elder-chen" },
+    { "id": "voice", "type": "cloud", "label": "语音交互", "sublabel": "ASR / 输出协调（设计）" },
+    { "id": "agent", "type": "backend", "label": "后台 Agent", "sublabel": "检索 / 有界候选整理" },
+    { "id": "gateway", "type": "security", "label": "业务网关", "sublabel": "身份·确认·版本·幂等" },
+    { "id": "memory", "type": "database", "label": "个人记忆", "sublabel": "按用户隔离 / 来源修订" },
+    { "id": "business", "type": "messagebus", "label": "业务记录", "sublabel": "提醒 / 授权投影 / 请求" },
+    { "id": "family", "type": "frontend", "label": "小林", "sublabel": "只读取获准内容" }
+  ],
+  "segments": [
+    { "from": 150, "to": 455, "label": "01 / 对话与记忆：先读相关来源，再写候选" },
+    { "from": 470, "to": 775, "label": "02 / 本人确认：不是模型自填 confirmed=true" },
+    { "from": 790, "to": 1065, "label": "03 / 授权投影：关怀话题与明确求助分开" }
+  ],
+  "messages": [
+    { "from": "elder", "to": "voice", "y": 190, "label": "音频（设计）", "variant": "emphasis" },
+    { "from": "voice", "to": "agent", "y": 230, "label": "final + rev", "variant": "dashed" },
+    { "from": "agent", "to": "gateway", "y": 270, "label": "读权限校验", "variant": "security" },
+    { "from": "gateway", "to": "memory", "y": 310, "label": "相关记忆查询", "variant": "emphasis" },
+    { "from": "memory", "to": "agent", "y": 350, "label": "命中与来源", "variant": "return" },
+    { "from": "agent", "to": "voice", "y": 390, "label": "先回应生活", "variant": "return" },
+    { "from": "agent", "to": "gateway", "y": 430, "label": "新增 / 修订候选", "variant": "dashed" },
+    { "from": "gateway", "to": "memory", "y": 510, "label": "版本校验后写入", "variant": "security" },
+    { "from": "elder", "to": "voice", "y": 550, "label": "改口与确认", "variant": "emphasis" },
+    { "from": "voice", "to": "agent", "y": 590, "label": "当前意愿证据", "variant": "dashed" },
+    { "from": "agent", "to": "gateway", "y": 630, "label": "提交确认版本", "variant": "security" },
+    { "from": "gateway", "to": "business", "y": 670, "label": "保存一次提醒", "variant": "emphasis" },
+    { "from": "business", "to": "voice", "y": 710, "label": "成功才播报；失败不生效", "variant": "return" },
+    { "from": "voice", "to": "elder", "y": 750, "label": "模拟结果反馈", "variant": "return" },
+    { "from": "elder", "to": "gateway", "y": 830, "label": "确认分享对象与内容", "variant": "security" },
+    { "from": "gateway", "to": "business", "y": 870, "label": "窄范围授权投影", "variant": "security" },
+    { "from": "business", "to": "family", "y": 910, "label": "近况 / 求助", "variant": "emphasis" },
+    { "from": "family", "to": "gateway", "y": 950, "label": "本人留言、接手与反馈（模拟）", "variant": "emphasis" },
+    { "from": "gateway", "to": "voice", "y": 990, "label": "带来源的业务结果", "variant": "return" },
+    { "from": "voice", "to": "elder", "y": 1030, "label": "统一转述（模拟）", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "voice", "from": 180, "to": 440, "type": "cloud" },
+    { "participant": "agent", "from": 220, "to": 440, "type": "backend" },
+    { "participant": "gateway", "from": 620, "to": 690, "type": "security" },
+    { "participant": "business", "from": 855, "to": 925, "type": "messagebus" }
+  ],
+  "cards": [
+    { "dot": "violet", "title": "记住，不代表共享", "items": ["个人记忆按老人隔离；新会话按需检索", "来源、候选、版本与修订可查看", "一次安排不是永久习惯；摘要不是业务账本"] },
+    { "dot": "rose", "title": "确认，不代表已保存", "items": ["确认绑定动作、版本与本人应答", "改口使旧候选失效；业务网关拒绝迟到结果", "失败不生效，幂等重试不重复创建"] },
+    { "dot": "emerald", "title": "关心，不都需要办结", "items": ["近况与可聊话题不变成强制工单", "明确求助才进入接手和反馈", "归因家属自报；不冒充实际联系与客观核验"] }
+  ]
+}

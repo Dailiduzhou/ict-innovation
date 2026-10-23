@@ -1,0 +1,58 @@
+<main id="conversation-demo" class="demo-shell">
+  <div class="demo-eyebrow"><span class="demo-badge">FICTIONAL SCENARIO / 情景模拟</span><span>手机即可使用 · 不依赖专用硬件</span></div>
+  <section class="demo-intro" aria-labelledby="demo-heading">
+    <div><p class="demo-kicker">AGEGUARD / A CONVERSATION, CONTINUED</p><h2 id="demo-heading">一句闲聊，<br>让下一次关心有了上下文。</h2><p>陈阿姨聊起鱼缸。小安记住重要的事，核对她的安排，<br class="desktop-break">再把她愿意分享的生活，交到女儿小林手里。</p></div>
+    <div class="demo-motif" aria-hidden="true"><span>听见</span><b>→</b><span>记住</span><b>→</b><span>接住</span><small>不是把所有聊天变成工单。</small></div>
+  </section>
+  <aside class="demo-boundary"><strong>这是演示，不是已接通的产品。</strong> 人物、台词、时间、转写、工具调用、授权、数据库、调度、家属操作均为预设回放。可选系统朗读不是原始录音或真实全双工；不采集麦克风，不发送消息，不保存业务数据。</aside>
+  <nav class="demo-branches" aria-label="选择演示情景">
+    <button type="button" data-scenario="main" aria-pressed="true"><strong>完整故事</strong><span>约 5 分钟 / 三段时间</span></button>
+    <button type="button" data-scenario="privacy" aria-pressed="false"><strong>如果她不想分享</strong><span>对照分支 / 不留旁路提示</span></button>
+    <button type="button" data-scenario="failure" aria-pressed="false"><strong>如果保存失败</strong><span>对照分支 / 重试不重复</span></button>
+  </nav>
+  <section class="demo-player" aria-label="演示播放器">
+    <div class="demo-controls">
+      <button type="button" id="demo-play" class="demo-primary">开始演示</button>
+      <button type="button" id="demo-prev" aria-label="上一步">← 上一步</button>
+      <button type="button" id="demo-next" aria-label="下一步">下一步 →</button>
+      <button type="button" id="demo-reset">从头回放</button>
+      <label>速度 <select id="demo-speed"><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option><option value="2">2×</option></select></label>
+      <label class="demo-voice-label"><input type="checkbox" id="demo-voice"> 系统朗读</label>
+      <button type="button" id="demo-fullscreen">全屏</button>
+    </div>
+    <div class="demo-progress-row"><output id="demo-time">00:00 / 05:00</output><input id="demo-progress" aria-label="跳转演示时间" type="range" min="0" max="300" step="0.1" value="0"><span id="demo-step-count">01 / 45</span></div>
+    <p class="demo-hint" id="demo-audio-status" role="status">默认静音字幕。勾选后仅在可用中文系统语音下朗读；音色、网络依赖因设备而异。</p>
+    <nav id="demo-chapters" class="demo-chapters" aria-label="按章节跳转"></nav>
+  </section>
+  <div class="demo-scene-bar"><div><span id="demo-act">01 / 先听见生活</span><h3 id="demo-scene">先认识陈阿姨</h3></div><div class="demo-clock"><span>虚构时间</span><strong id="demo-when">10月23日 周五 19:30</strong></div></div>
+  <div class="demo-triptych">
+    <section class="demo-panel demo-elder" aria-labelledby="demo-elder-title">
+      <header class="demo-panel-head"><div><span class="demo-index">01 / VOICE</span><h3 id="demo-elder-title">陈阿姨的手机</h3></div><span class="demo-tag">剧本对话</span></header>
+      <div class="demo-voice-state"><div class="demo-orb" id="demo-orb" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div><div><strong id="demo-speaking">等待开始</strong><p id="demo-voice-mode">字幕回放 · 麦克风未开启</p></div></div>
+      <ol id="demo-chat" class="demo-chat" aria-label="本会话的对话字幕"></ol>
+      <div class="demo-caption" aria-live="polite" aria-atomic="true"><span id="demo-caption-speaker">演示说明</span><p id="demo-caption-text"></p></div>
+      <div id="demo-personal-reminder" class="demo-personal-reminder"></div>
+      <p class="demo-panel-foot">老人可独立使用。家属不是私人记忆的管理员。</p>
+    </section>
+    <section class="demo-panel demo-backend" aria-labelledby="demo-backend-title">
+      <header class="demo-panel-head"><div><span class="demo-index">02 / AGENT TRACE</span><h3 id="demo-backend-title">后台发生了什么</h3></div><span class="demo-tag">演示契约</span></header>
+      <div id="demo-pipeline" class="demo-pipeline" aria-label="当前处理阶段"></div>
+      <div class="demo-trace-head"><code id="demo-source">S-A / A00</code><span>事件与数据 · 非内部思维</span></div>
+      <div id="demo-events" class="demo-events"></div>
+      <div class="demo-ledger-title"><h4>陈阿姨的个人记忆</h4><span id="demo-memory-count">3 条</span></div>
+      <p class="demo-ledger-scope">owner: elder-chen · 私有 · 跨会话按需检索</p>
+      <div id="demo-memories" class="demo-memories"></div>
+      <details class="demo-technical"><summary>当前候选、确认凭据与修订记录</summary><pre id="demo-state"></pre></details>
+    </section>
+    <section class="demo-panel demo-family" aria-labelledby="demo-family-title">
+      <header class="demo-panel-head"><div><span class="demo-index">03 / FAMILY</span><h3 id="demo-family-title">小林看到的内容</h3></div><span class="demo-tag">授权视角</span></header>
+      <p class="demo-family-scope">仅小林获准接收的内容，不含妈妈的完整聊天。</p>
+      <div id="demo-family-content" class="demo-family-content"></div>
+      <p class="demo-panel-foot">近况不要求办结。留言来自脚本中的小林，不由 AI 冒充。</p>
+    </section>
+  </div>
+  <aside class="demo-director"><span>此刻的讲解重点</span><p id="demo-note"></p></aside>
+  <details class="demo-script"><summary>完整逐字脚本与可核验事件 <span>点开后可跳到任意一句</span></summary><p class="demo-script-hint">以下包含当前分支全部台词，是讲解者视角，不是家属可读取的记录。也可下载离线讲解稿。</p><button type="button" id="demo-download-script">下载当前分支脚本 .md</button><ol id="demo-transcript"></ol></details>
+  <div id="demo-announcement" class="demo-sr-only" role="status"></div>
+  <noscript><p class="demo-boundary">此演示需要 JavaScript。完整离线脚本另见 conversation-demo/script.md；下方静态时序图仍可阅读。</p></noscript>
+</main>

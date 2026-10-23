@@ -1,0 +1,2373 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="generator" content="archify 2.6.0">
+  <title>AgeGuard · 从一句闲聊到家人参与 Diagram</title>
+  <script>
+    // Resolve the theme before first paint so light-preference users don't
+    // see a dark flash. The toolbar script below re-applies with UI state.
+    (function () {
+      try {
+        var theme = null;
+        try {
+          var param = new URLSearchParams(window.location.search).get('theme');
+          if (param === 'light' || param === 'dark') theme = param;
+        } catch (_) {}
+        if (!theme) {
+          try { theme = localStorage.getItem('archify-theme'); } catch (_) {}
+        }
+        if (theme !== 'light' && theme !== 'dark') {
+          theme = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (_) {}
+    })();
+  </script>
+  <!-- Async font load: a blackholed network must not block first paint.
+       The body font stack falls back to system monospace until it lands. -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+        rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  </noscript>
+  <!-- GIF Encoder (gif.js with inline worker, works with file:// protocol) -->
+  <script>
+    // gif.js worker inlined as Blob URL to work with file:// protocol
+    var gifWorkerCode = '// gif.worker.js 0.2.0 - https://github.com/jnordberg/gif.js\n(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module \'"+o+"\'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){var NeuQuant=require("./TypedNeuQuant.js");var LZWEncoder=require("./LZWEncoder.js");function ByteArray(){this.page=-1;this.pages=[];this.newPage()}ByteArray.pageSize=4096;ByteArray.charMap={};for(var i=0;i<256;i++)ByteArray.charMap[i]=String.fromCharCode(i);ByteArray.prototype.newPage=function(){this.pages[++this.page]=new Uint8Array(ByteArray.pageSize);this.cursor=0};ByteArray.prototype.getData=function(){var rv="";for(var p=0;p<this.pages.length;p++){for(var i=0;i<ByteArray.pageSize;i++){rv+=ByteArray.charMap[this.pages[p][i]]}}return rv};ByteArray.prototype.writeByte=function(val){if(this.cursor>=ByteArray.pageSize)this.newPage();this.pages[this.page][this.cursor++]=val};ByteArray.prototype.writeUTFBytes=function(string){for(var l=string.length,i=0;i<l;i++)this.writeByte(string.charCodeAt(i))};ByteArray.prototype.writeBytes=function(array,offset,length){for(var l=length||array.length,i=offset||0;i<l;i++)this.writeByte(array[i])};function GIFEncoder(width,height){this.width=~~width;this.height=~~height;this.transparent=null;this.transIndex=0;this.repeat=-1;this.delay=0;this.image=null;this.pixels=null;this.indexedPixels=null;this.colorDepth=null;this.colorTab=null;this.neuQuant=null;this.usedEntry=new Array;this.palSize=7;this.dispose=-1;this.firstFrame=true;this.sample=10;this.dither=false;this.globalPalette=false;this.out=new ByteArray}GIFEncoder.prototype.setDelay=function(milliseconds){this.delay=Math.round(milliseconds/10)};GIFEncoder.prototype.setFrameRate=function(fps){this.delay=Math.round(100/fps)};GIFEncoder.prototype.setDispose=function(disposalCode){if(disposalCode>=0)this.dispose=disposalCode};GIFEncoder.prototype.setRepeat=function(repeat){this.repeat=repeat};GIFEncoder.prototype.setTransparent=function(color){this.transparent=color};GIFEncoder.prototype.addFrame=function(imageData){this.image=imageData;this.colorTab=this.globalPalette&&this.globalPalette.slice?this.globalPalette:null;this.getImagePixels();this.analyzePixels();if(this.globalPalette===true)this.globalPalette=this.colorTab;if(this.firstFrame){this.writeLSD();this.writePalette();if(this.repeat>=0){this.writeNetscapeExt()}}this.writeGraphicCtrlExt();this.writeImageDesc();if(!this.firstFrame&&!this.globalPalette)this.writePalette();this.writePixels();this.firstFrame=false};GIFEncoder.prototype.finish=function(){this.out.writeByte(59)};GIFEncoder.prototype.setQuality=function(quality){if(quality<1)quality=1;this.sample=quality};GIFEncoder.prototype.setDither=function(dither){if(dither===true)dither="FloydSteinberg";this.dither=dither};GIFEncoder.prototype.setGlobalPalette=function(palette){this.globalPalette=palette};GIFEncoder.prototype.getGlobalPalette=function(){return this.globalPalette&&this.globalPalette.slice&&this.globalPalette.slice(0)||this.globalPalette};GIFEncoder.prototype.writeHeader=function(){this.out.writeUTFBytes("GIF89a")};GIFEncoder.prototype.analyzePixels=function(){if(!this.colorTab){this.neuQuant=new NeuQuant(this.pixels,this.sample);this.neuQuant.buildColormap();this.colorTab=this.neuQuant.getColormap()}if(this.dither){this.ditherPixels(this.dither.replace("-serpentine",""),this.dither.match(/-serpentine/)!==null)}else{this.indexPixels()}this.pixels=null;this.colorDepth=8;this.palSize=7;if(this.transparent!==null){this.transIndex=this.findClosest(this.transparent,true)}};GIFEncoder.prototype.indexPixels=function(imgq){var nPix=this.pixels.length/3;this.indexedPixels=new Uint8Array(nPix);var k=0;for(var j=0;j<nPix;j++){var index=this.findClosestRGB(this.pixels[k++]&255,this.pixels[k++]&255,this.pixels[k++]&255);this.usedEntry[index]=true;this.indexedPixels[j]=index}};GIFEncoder.prototype.ditherPixels=function(kernel,serpentine){var kernels={FalseFloydSteinberg:[[3/8,1,0],[3/8,0,1],[2/8,1,1]],FloydSteinberg:[[7/16,1,0],[3/16,-1,1],[5/16,0,1],[1/16,1,1]],Stucki:[[8/42,1,0],[4/42,2,0],[2/42,-2,1],[4/42,-1,1],[8/42,0,1],[4/42,1,1],[2/42,2,1],[1/42,-2,2],[2/42,-1,2],[4/42,0,2],[2/42,1,2],[1/42,2,2]],Atkinson:[[1/8,1,0],[1/8,2,0],[1/8,-1,1],[1/8,0,1],[1/8,1,1],[1/8,0,2]]};if(!kernel||!kernels[kernel]){throw"Unknown dithering kernel: "+kernel}var ds=kernels[kernel];var index=0,height=this.height,width=this.width,data=this.pixels;var direction=serpentine?-1:1;this.indexedPixels=new Uint8Array(this.pixels.length/3);for(var y=0;y<height;y++){if(serpentine)direction=direction*-1;for(var x=direction==1?0:width-1,xend=direction==1?width:0;x!==xend;x+=direction){index=y*width+x;var idx=index*3;var r1=data[idx];var g1=data[idx+1];var b1=data[idx+2];idx=this.findClosestRGB(r1,g1,b1);this.usedEntry[idx]=true;this.indexedPixels[index]=idx;idx*=3;var r2=this.colorTab[idx];var g2=this.colorTab[idx+1];var b2=this.colorTab[idx+2];var er=r1-r2;var eg=g1-g2;var eb=b1-b2;for(var i=direction==1?0:ds.length-1,end=direction==1?ds.length:0;i!==end;i+=direction){var x1=ds[i][1];var y1=ds[i][2];if(x1+x>=0&&x1+x<width&&y1+y>=0&&y1+y<height){var d=ds[i][0];idx=index+x1+y1*width;idx*=3;data[idx]=Math.max(0,Math.min(255,data[idx]+er*d));data[idx+1]=Math.max(0,Math.min(255,data[idx+1]+eg*d));data[idx+2]=Math.max(0,Math.min(255,data[idx+2]+eb*d))}}}}};GIFEncoder.prototype.findClosest=function(c,used){return this.findClosestRGB((c&16711680)>>16,(c&65280)>>8,c&255,used)};GIFEncoder.prototype.findClosestRGB=function(r,g,b,used){if(this.colorTab===null)return-1;if(this.neuQuant&&!used){return this.neuQuant.lookupRGB(r,g,b)}var c=b|g<<8|r<<16;var minpos=0;var dmin=256*256*256;var len=this.colorTab.length;for(var i=0,index=0;i<len;index++){var dr=r-(this.colorTab[i++]&255);var dg=g-(this.colorTab[i++]&255);var db=b-(this.colorTab[i++]&255);var d=dr*dr+dg*dg+db*db;if((!used||this.usedEntry[index])&&d<dmin){dmin=d;minpos=index}}return minpos};GIFEncoder.prototype.getImagePixels=function(){var w=this.width;var h=this.height;this.pixels=new Uint8Array(w*h*3);var data=this.image;var srcPos=0;var count=0;for(var i=0;i<h;i++){for(var j=0;j<w;j++){this.pixels[count++]=data[srcPos++];this.pixels[count++]=data[srcPos++];this.pixels[count++]=data[srcPos++];srcPos++}}};GIFEncoder.prototype.writeGraphicCtrlExt=function(){this.out.writeByte(33);this.out.writeByte(249);this.out.writeByte(4);var transp,disp;if(this.transparent===null){transp=0;disp=0}else{transp=1;disp=2}if(this.dispose>=0){disp=dispose&7}disp<<=2;this.out.writeByte(0|disp|0|transp);this.writeShort(this.delay);this.out.writeByte(this.transIndex);this.out.writeByte(0)};GIFEncoder.prototype.writeImageDesc=function(){this.out.writeByte(44);this.writeShort(0);this.writeShort(0);this.writeShort(this.width);this.writeShort(this.height);if(this.firstFrame||this.globalPalette){this.out.writeByte(0)}else{this.out.writeByte(128|0|0|0|this.palSize)}};GIFEncoder.prototype.writeLSD=function(){this.writeShort(this.width);this.writeShort(this.height);this.out.writeByte(128|112|0|this.palSize);this.out.writeByte(0);this.out.writeByte(0)};GIFEncoder.prototype.writeNetscapeExt=function(){this.out.writeByte(33);this.out.writeByte(255);this.out.writeByte(11);this.out.writeUTFBytes("NETSCAPE2.0");this.out.writeByte(3);this.out.writeByte(1);this.writeShort(this.repeat);this.out.writeByte(0)};GIFEncoder.prototype.writePalette=function(){this.out.writeBytes(this.colorTab);var n=3*256-this.colorTab.length;for(var i=0;i<n;i++)this.out.writeByte(0)};GIFEncoder.prototype.writeShort=function(pValue){this.out.writeByte(pValue&255);this.out.writeByte(pValue>>8&255)};GIFEncoder.prototype.writePixels=function(){var enc=new LZWEncoder(this.width,this.height,this.indexedPixels,this.colorDepth);enc.encode(this.out)};GIFEncoder.prototype.stream=function(){return this.out};module.exports=GIFEncoder},{"./LZWEncoder.js":2,"./TypedNeuQuant.js":3}],2:[function(require,module,exports){var EOF=-1;var BITS=12;var HSIZE=5003;var masks=[0,1,3,7,15,31,63,127,255,511,1023,2047,4095,8191,16383,32767,65535];function LZWEncoder(width,height,pixels,colorDepth){var initCodeSize=Math.max(2,colorDepth);var accum=new Uint8Array(256);var htab=new Int32Array(HSIZE);var codetab=new Int32Array(HSIZE);var cur_accum,cur_bits=0;var a_count;var free_ent=0;var maxcode;var clear_flg=false;var g_init_bits,ClearCode,EOFCode;function char_out(c,outs){accum[a_count++]=c;if(a_count>=254)flush_char(outs)}function cl_block(outs){cl_hash(HSIZE);free_ent=ClearCode+2;clear_flg=true;output(ClearCode,outs)}function cl_hash(hsize){for(var i=0;i<hsize;++i)htab[i]=-1}function compress(init_bits,outs){var fcode,c,i,ent,disp,hsize_reg,hshift;g_init_bits=init_bits;clear_flg=false;n_bits=g_init_bits;maxcode=MAXCODE(n_bits);ClearCode=1<<init_bits-1;EOFCode=ClearCode+1;free_ent=ClearCode+2;a_count=0;ent=nextPixel();hshift=0;for(fcode=HSIZE;fcode<65536;fcode*=2)++hshift;hshift=8-hshift;hsize_reg=HSIZE;cl_hash(hsize_reg);output(ClearCode,outs);outer_loop:while((c=nextPixel())!=EOF){fcode=(c<<BITS)+ent;i=c<<hshift^ent;if(htab[i]===fcode){ent=codetab[i];continue}else if(htab[i]>=0){disp=hsize_reg-i;if(i===0)disp=1;do{if((i-=disp)<0)i+=hsize_reg;if(htab[i]===fcode){ent=codetab[i];continue outer_loop}}while(htab[i]>=0)}output(ent,outs);ent=c;if(free_ent<1<<BITS){codetab[i]=free_ent++;htab[i]=fcode}else{cl_block(outs)}}output(ent,outs);output(EOFCode,outs)}function encode(outs){outs.writeByte(initCodeSize);remaining=width*height;curPixel=0;compress(initCodeSize+1,outs);outs.writeByte(0)}function flush_char(outs){if(a_count>0){outs.writeByte(a_count);outs.writeBytes(accum,0,a_count);a_count=0}}function MAXCODE(n_bits){return(1<<n_bits)-1}function nextPixel(){if(remaining===0)return EOF;--remaining;var pix=pixels[curPixel++];return pix&255}function output(code,outs){cur_accum&=masks[cur_bits];if(cur_bits>0)cur_accum|=code<<cur_bits;else cur_accum=code;cur_bits+=n_bits;while(cur_bits>=8){char_out(cur_accum&255,outs);cur_accum>>=8;cur_bits-=8}if(free_ent>maxcode||clear_flg){if(clear_flg){maxcode=MAXCODE(n_bits=g_init_bits);clear_flg=false}else{++n_bits;if(n_bits==BITS)maxcode=1<<BITS;else maxcode=MAXCODE(n_bits)}}if(code==EOFCode){while(cur_bits>0){char_out(cur_accum&255,outs);cur_accum>>=8;cur_bits-=8}flush_char(outs)}}this.encode=encode}module.exports=LZWEncoder},{}],3:[function(require,module,exports){var ncycles=100;var netsize=256;var maxnetpos=netsize-1;var netbiasshift=4;var intbiasshift=16;var intbias=1<<intbiasshift;var gammashift=10;var gamma=1<<gammashift;var betashift=10;var beta=intbias>>betashift;var betagamma=intbias<<gammashift-betashift;var initrad=netsize>>3;var radiusbiasshift=6;var radiusbias=1<<radiusbiasshift;var initradius=initrad*radiusbias;var radiusdec=30;var alphabiasshift=10;var initalpha=1<<alphabiasshift;var alphadec;var radbiasshift=8;var radbias=1<<radbiasshift;var alpharadbshift=alphabiasshift+radbiasshift;var alpharadbias=1<<alpharadbshift;var prime1=499;var prime2=491;var prime3=487;var prime4=503;var minpicturebytes=3*prime4;function NeuQuant(pixels,samplefac){var network;var netindex;var bias;var freq;var radpower;function init(){network=[];netindex=new Int32Array(256);bias=new Int32Array(netsize);freq=new Int32Array(netsize);radpower=new Int32Array(netsize>>3);var i,v;for(i=0;i<netsize;i++){v=(i<<netbiasshift+8)/netsize;network[i]=new Float64Array([v,v,v,0]);freq[i]=intbias/netsize;bias[i]=0}}function unbiasnet(){for(var i=0;i<netsize;i++){network[i][0]>>=netbiasshift;network[i][1]>>=netbiasshift;network[i][2]>>=netbiasshift;network[i][3]=i}}function altersingle(alpha,i,b,g,r){network[i][0]-=alpha*(network[i][0]-b)/initalpha;network[i][1]-=alpha*(network[i][1]-g)/initalpha;network[i][2]-=alpha*(network[i][2]-r)/initalpha}function alterneigh(radius,i,b,g,r){var lo=Math.abs(i-radius);var hi=Math.min(i+radius,netsize);var j=i+1;var k=i-1;var m=1;var p,a;while(j<hi||k>lo){a=radpower[m++];if(j<hi){p=network[j++];p[0]-=a*(p[0]-b)/alpharadbias;p[1]-=a*(p[1]-g)/alpharadbias;p[2]-=a*(p[2]-r)/alpharadbias}if(k>lo){p=network[k--];p[0]-=a*(p[0]-b)/alpharadbias;p[1]-=a*(p[1]-g)/alpharadbias;p[2]-=a*(p[2]-r)/alpharadbias}}}function contest(b,g,r){var bestd=~(1<<31);var bestbiasd=bestd;var bestpos=-1;var bestbiaspos=bestpos;var i,n,dist,biasdist,betafreq;for(i=0;i<netsize;i++){n=network[i];dist=Math.abs(n[0]-b)+Math.abs(n[1]-g)+Math.abs(n[2]-r);if(dist<bestd){bestd=dist;bestpos=i}biasdist=dist-(bias[i]>>intbiasshift-netbiasshift);if(biasdist<bestbiasd){bestbiasd=biasdist;bestbiaspos=i}betafreq=freq[i]>>betashift;freq[i]-=betafreq;bias[i]+=betafreq<<gammashift}freq[bestpos]+=beta;bias[bestpos]-=betagamma;return bestbiaspos}function inxbuild(){var i,j,p,q,smallpos,smallval,previouscol=0,startpos=0;for(i=0;i<netsize;i++){p=network[i];smallpos=i;smallval=p[1];for(j=i+1;j<netsize;j++){q=network[j];if(q[1]<smallval){smallpos=j;smallval=q[1]}}q=network[smallpos];if(i!=smallpos){j=q[0];q[0]=p[0];p[0]=j;j=q[1];q[1]=p[1];p[1]=j;j=q[2];q[2]=p[2];p[2]=j;j=q[3];q[3]=p[3];p[3]=j}if(smallval!=previouscol){netindex[previouscol]=startpos+i>>1;for(j=previouscol+1;j<smallval;j++)netindex[j]=i;previouscol=smallval;startpos=i}}netindex[previouscol]=startpos+maxnetpos>>1;for(j=previouscol+1;j<256;j++)netindex[j]=maxnetpos}function inxsearch(b,g,r){var a,p,dist;var bestd=1e3;var best=-1;var i=netindex[g];var j=i-1;while(i<netsize||j>=0){if(i<netsize){p=network[i];dist=p[1]-g;if(dist>=bestd)i=netsize;else{i++;if(dist<0)dist=-dist;a=p[0]-b;if(a<0)a=-a;dist+=a;if(dist<bestd){a=p[2]-r;if(a<0)a=-a;dist+=a;if(dist<bestd){bestd=dist;best=p[3]}}}}if(j>=0){p=network[j];dist=g-p[1];if(dist>=bestd)j=-1;else{j--;if(dist<0)dist=-dist;a=p[0]-b;if(a<0)a=-a;dist+=a;if(dist<bestd){a=p[2]-r;if(a<0)a=-a;dist+=a;if(dist<bestd){bestd=dist;best=p[3]}}}}}return best}function learn(){var i;var lengthcount=pixels.length;var alphadec=30+(samplefac-1)/3;var samplepixels=lengthcount/(3*samplefac);var delta=~~(samplepixels/ncycles);var alpha=initalpha;var radius=initradius;var rad=radius>>radiusbiasshift;if(rad<=1)rad=0;for(i=0;i<rad;i++)radpower[i]=alpha*((rad*rad-i*i)*radbias/(rad*rad));var step;if(lengthcount<minpicturebytes){samplefac=1;step=3}else if(lengthcount%prime1!==0){step=3*prime1}else if(lengthcount%prime2!==0){step=3*prime2}else if(lengthcount%prime3!==0){step=3*prime3}else{step=3*prime4}var b,g,r,j;var pix=0;i=0;while(i<samplepixels){b=(pixels[pix]&255)<<netbiasshift;g=(pixels[pix+1]&255)<<netbiasshift;r=(pixels[pix+2]&255)<<netbiasshift;j=contest(b,g,r);altersingle(alpha,j,b,g,r);if(rad!==0)alterneigh(rad,j,b,g,r);pix+=step;if(pix>=lengthcount)pix-=lengthcount;i++;if(delta===0)delta=1;if(i%delta===0){alpha-=alpha/alphadec;radius-=radius/radiusdec;rad=radius>>radiusbiasshift;if(rad<=1)rad=0;for(j=0;j<rad;j++)radpower[j]=alpha*((rad*rad-j*j)*radbias/(rad*rad))}}}function buildColormap(){init();learn();unbiasnet();inxbuild()}this.buildColormap=buildColormap;function getColormap(){var map=[];var index=[];for(var i=0;i<netsize;i++)index[network[i][3]]=i;var k=0;for(var l=0;l<netsize;l++){var j=index[l];map[k++]=network[j][0];map[k++]=network[j][1];map[k++]=network[j][2]}return map}this.getColormap=getColormap;this.lookupRGB=inxsearch}module.exports=NeuQuant},{}],4:[function(require,module,exports){var GIFEncoder,renderFrame;GIFEncoder=require("./GIFEncoder.js");renderFrame=function(frame){var encoder,page,stream,transfer;encoder=new GIFEncoder(frame.width,frame.height);if(frame.index===0){encoder.writeHeader()}else{encoder.firstFrame=false}encoder.setTransparent(frame.transparent);encoder.setRepeat(frame.repeat);encoder.setDelay(frame.delay);encoder.setQuality(frame.quality);encoder.setDither(frame.dither);encoder.setGlobalPalette(frame.globalPalette);encoder.addFrame(frame.data);if(frame.last){encoder.finish()}if(frame.globalPalette===true){frame.globalPalette=encoder.getGlobalPalette()}stream=encoder.stream();frame.data=stream.pages;frame.cursor=stream.cursor;frame.pageSize=stream.constructor.pageSize;if(frame.canTransfer){transfer=function(){var i,len,ref,results;ref=frame.data;results=[];for(i=0,len=ref.length;i<len;i++){page=ref[i];results.push(page.buffer)}return results}();return self.postMessage(frame,transfer)}else{return self.postMessage(frame)}};self.onmessage=function(event){return renderFrame(event.data)}},{"./GIFEncoder.js":1}]},{},[4]);\n//# sourceMappingURL=gif.worker.js.map';
+    var gifWorkerBlob = new Blob([gifWorkerCode], {type: 'application/javascript'});
+    var gifWorkerUrl = URL.createObjectURL(gifWorkerBlob);
+  </script>
+  <script>
+    // gif.js library (inlined)
+    // gif.js 0.2.0 - https://github.com/jnordberg/gif.js
+(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.GIF=f()}})(function(){var define,module,exports;return function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s}({1:[function(require,module,exports){function EventEmitter(){this._events=this._events||{};this._maxListeners=this._maxListeners||undefined}module.exports=EventEmitter;EventEmitter.EventEmitter=EventEmitter;EventEmitter.prototype._events=undefined;EventEmitter.prototype._maxListeners=undefined;EventEmitter.defaultMaxListeners=10;EventEmitter.prototype.setMaxListeners=function(n){if(!isNumber(n)||n<0||isNaN(n))throw TypeError("n must be a positive number");this._maxListeners=n;return this};EventEmitter.prototype.emit=function(type){var er,handler,len,args,i,listeners;if(!this._events)this._events={};if(type==="error"){if(!this._events.error||isObject(this._events.error)&&!this._events.error.length){er=arguments[1];if(er instanceof Error){throw er}else{var err=new Error('Uncaught, unspecified "error" event. ('+er+")");err.context=er;throw err}}}handler=this._events[type];if(isUndefined(handler))return false;if(isFunction(handler)){switch(arguments.length){case 1:handler.call(this);break;case 2:handler.call(this,arguments[1]);break;case 3:handler.call(this,arguments[1],arguments[2]);break;default:args=Array.prototype.slice.call(arguments,1);handler.apply(this,args)}}else if(isObject(handler)){args=Array.prototype.slice.call(arguments,1);listeners=handler.slice();len=listeners.length;for(i=0;i<len;i++)listeners[i].apply(this,args)}return true};EventEmitter.prototype.addListener=function(type,listener){var m;if(!isFunction(listener))throw TypeError("listener must be a function");if(!this._events)this._events={};if(this._events.newListener)this.emit("newListener",type,isFunction(listener.listener)?listener.listener:listener);if(!this._events[type])this._events[type]=listener;else if(isObject(this._events[type]))this._events[type].push(listener);else this._events[type]=[this._events[type],listener];if(isObject(this._events[type])&&!this._events[type].warned){if(!isUndefined(this._maxListeners)){m=this._maxListeners}else{m=EventEmitter.defaultMaxListeners}if(m&&m>0&&this._events[type].length>m){this._events[type].warned=true;console.error("(node) warning: possible EventEmitter memory "+"leak detected. %d listeners added. "+"Use emitter.setMaxListeners() to increase limit.",this._events[type].length);if(typeof console.trace==="function"){console.trace()}}}return this};EventEmitter.prototype.on=EventEmitter.prototype.addListener;EventEmitter.prototype.once=function(type,listener){if(!isFunction(listener))throw TypeError("listener must be a function");var fired=false;function g(){this.removeListener(type,g);if(!fired){fired=true;listener.apply(this,arguments)}}g.listener=listener;this.on(type,g);return this};EventEmitter.prototype.removeListener=function(type,listener){var list,position,length,i;if(!isFunction(listener))throw TypeError("listener must be a function");if(!this._events||!this._events[type])return this;list=this._events[type];length=list.length;position=-1;if(list===listener||isFunction(list.listener)&&list.listener===listener){delete this._events[type];if(this._events.removeListener)this.emit("removeListener",type,listener)}else if(isObject(list)){for(i=length;i-- >0;){if(list[i]===listener||list[i].listener&&list[i].listener===listener){position=i;break}}if(position<0)return this;if(list.length===1){list.length=0;delete this._events[type]}else{list.splice(position,1)}if(this._events.removeListener)this.emit("removeListener",type,listener)}return this};EventEmitter.prototype.removeAllListeners=function(type){var key,listeners;if(!this._events)return this;if(!this._events.removeListener){if(arguments.length===0)this._events={};else if(this._events[type])delete this._events[type];return this}if(arguments.length===0){for(key in this._events){if(key==="removeListener")continue;this.removeAllListeners(key)}this.removeAllListeners("removeListener");this._events={};return this}listeners=this._events[type];if(isFunction(listeners)){this.removeListener(type,listeners)}else if(listeners){while(listeners.length)this.removeListener(type,listeners[listeners.length-1])}delete this._events[type];return this};EventEmitter.prototype.listeners=function(type){var ret;if(!this._events||!this._events[type])ret=[];else if(isFunction(this._events[type]))ret=[this._events[type]];else ret=this._events[type].slice();return ret};EventEmitter.prototype.listenerCount=function(type){if(this._events){var evlistener=this._events[type];if(isFunction(evlistener))return 1;else if(evlistener)return evlistener.length}return 0};EventEmitter.listenerCount=function(emitter,type){return emitter.listenerCount(type)};function isFunction(arg){return typeof arg==="function"}function isNumber(arg){return typeof arg==="number"}function isObject(arg){return typeof arg==="object"&&arg!==null}function isUndefined(arg){return arg===void 0}},{}],2:[function(require,module,exports){var UA,browser,mode,platform,ua;ua=navigator.userAgent.toLowerCase();platform=navigator.platform.toLowerCase();UA=ua.match(/(opera|ie|firefox|chrome|version)[\s\/:]([\w\d\.]+)?.*?(safari|version[\s\/:]([\w\d\.]+)|$)/)||[null,"unknown",0];mode=UA[1]==="ie"&&document.documentMode;browser={name:UA[1]==="version"?UA[3]:UA[1],version:mode||parseFloat(UA[1]==="opera"&&UA[4]?UA[4]:UA[2]),platform:{name:ua.match(/ip(?:ad|od|hone)/)?"ios":(ua.match(/(?:webos|android)/)||platform.match(/mac|win|linux/)||["other"])[0]}};browser[browser.name]=true;browser[browser.name+parseInt(browser.version,10)]=true;browser.platform[browser.platform.name]=true;module.exports=browser},{}],3:[function(require,module,exports){var EventEmitter,GIF,browser,extend=function(child,parent){for(var key in parent){if(hasProp.call(parent,key))child[key]=parent[key]}function ctor(){this.constructor=child}ctor.prototype=parent.prototype;child.prototype=new ctor;child.__super__=parent.prototype;return child},hasProp={}.hasOwnProperty,indexOf=[].indexOf||function(item){for(var i=0,l=this.length;i<l;i++){if(i in this&&this[i]===item)return i}return-1},slice=[].slice;EventEmitter=require("events").EventEmitter;browser=require("./browser.coffee");GIF=function(superClass){var defaults,frameDefaults;extend(GIF,superClass);defaults={workerScript:"gif.worker.js",workers:2,repeat:0,background:"#fff",quality:10,width:null,height:null,transparent:null,debug:false,dither:false};frameDefaults={delay:500,copy:false};function GIF(options){var base,key,value;this.running=false;this.options={};this.frames=[];this.freeWorkers=[];this.activeWorkers=[];this.setOptions(options);for(key in defaults){value=defaults[key];if((base=this.options)[key]==null){base[key]=value}}}GIF.prototype.setOption=function(key,value){this.options[key]=value;if(this._canvas!=null&&(key==="width"||key==="height")){return this._canvas[key]=value}};GIF.prototype.setOptions=function(options){var key,results,value;results=[];for(key in options){if(!hasProp.call(options,key))continue;value=options[key];results.push(this.setOption(key,value))}return results};GIF.prototype.addFrame=function(image,options){var frame,key;if(options==null){options={}}frame={};frame.transparent=this.options.transparent;for(key in frameDefaults){frame[key]=options[key]||frameDefaults[key]}if(this.options.width==null){this.setOption("width",image.width)}if(this.options.height==null){this.setOption("height",image.height)}if(typeof ImageData!=="undefined"&&ImageData!==null&&image instanceof ImageData){frame.data=image.data}else if(typeof CanvasRenderingContext2D!=="undefined"&&CanvasRenderingContext2D!==null&&image instanceof CanvasRenderingContext2D||typeof WebGLRenderingContext!=="undefined"&&WebGLRenderingContext!==null&&image instanceof WebGLRenderingContext){if(options.copy){frame.data=this.getContextData(image)}else{frame.context=image}}else if(image.childNodes!=null){if(options.copy){frame.data=this.getImageData(image)}else{frame.image=image}}else{throw new Error("Invalid image")}return this.frames.push(frame)};GIF.prototype.render=function(){var i,j,numWorkers,ref;if(this.running){throw new Error("Already running")}if(this.options.width==null||this.options.height==null){throw new Error("Width and height must be set prior to rendering")}this.running=true;this.nextFrame=0;this.finishedFrames=0;this.imageParts=function(){var j,ref,results;results=[];for(i=j=0,ref=this.frames.length;0<=ref?j<ref:j>ref;i=0<=ref?++j:--j){results.push(null)}return results}.call(this);numWorkers=this.spawnWorkers();if(this.options.globalPalette===true){this.renderNextFrame()}else{for(i=j=0,ref=numWorkers;0<=ref?j<ref:j>ref;i=0<=ref?++j:--j){this.renderNextFrame()}}this.emit("start");return this.emit("progress",0)};GIF.prototype.abort=function(){var worker;while(true){worker=this.activeWorkers.shift();if(worker==null){break}this.log("killing active worker");worker.terminate()}this.running=false;return this.emit("abort")};GIF.prototype.spawnWorkers=function(){var j,numWorkers,ref,results;numWorkers=Math.min(this.options.workers,this.frames.length);(function(){results=[];for(var j=ref=this.freeWorkers.length;ref<=numWorkers?j<numWorkers:j>numWorkers;ref<=numWorkers?j++:j--){results.push(j)}return results}).apply(this).forEach(function(_this){return function(i){var worker;_this.log("spawning worker "+i);worker=new Worker(_this.options.workerScript);worker.onmessage=function(event){_this.activeWorkers.splice(_this.activeWorkers.indexOf(worker),1);_this.freeWorkers.push(worker);return _this.frameFinished(event.data)};return _this.freeWorkers.push(worker)}}(this));return numWorkers};GIF.prototype.frameFinished=function(frame){var i,j,ref;this.log("frame "+frame.index+" finished - "+this.activeWorkers.length+" active");this.finishedFrames++;this.emit("progress",this.finishedFrames/this.frames.length);this.imageParts[frame.index]=frame;if(this.options.globalPalette===true){this.options.globalPalette=frame.globalPalette;this.log("global palette analyzed");if(this.frames.length>2){for(i=j=1,ref=this.freeWorkers.length;1<=ref?j<ref:j>ref;i=1<=ref?++j:--j){this.renderNextFrame()}}}if(indexOf.call(this.imageParts,null)>=0){return this.renderNextFrame()}else{return this.finishRendering()}};GIF.prototype.finishRendering=function(){var data,frame,i,image,j,k,l,len,len1,len2,len3,offset,page,ref,ref1,ref2;len=0;ref=this.imageParts;for(j=0,len1=ref.length;j<len1;j++){frame=ref[j];len+=(frame.data.length-1)*frame.pageSize+frame.cursor}len+=frame.pageSize-frame.cursor;this.log("rendering finished - filesize "+Math.round(len/1e3)+"kb");data=new Uint8Array(len);offset=0;ref1=this.imageParts;for(k=0,len2=ref1.length;k<len2;k++){frame=ref1[k];ref2=frame.data;for(i=l=0,len3=ref2.length;l<len3;i=++l){page=ref2[i];data.set(page,offset);if(i===frame.data.length-1){offset+=frame.cursor}else{offset+=frame.pageSize}}}image=new Blob([data],{type:"image/gif"});return this.emit("finished",image,data)};GIF.prototype.renderNextFrame=function(){var frame,task,worker;if(this.freeWorkers.length===0){throw new Error("No free workers")}if(this.nextFrame>=this.frames.length){return}frame=this.frames[this.nextFrame++];worker=this.freeWorkers.shift();task=this.getTask(frame);this.log("starting frame "+(task.index+1)+" of "+this.frames.length);this.activeWorkers.push(worker);return worker.postMessage(task)};GIF.prototype.getContextData=function(ctx){return ctx.getImageData(0,0,this.options.width,this.options.height).data};GIF.prototype.getImageData=function(image){var ctx;if(this._canvas==null){this._canvas=document.createElement("canvas");this._canvas.width=this.options.width;this._canvas.height=this.options.height}ctx=this._canvas.getContext("2d");ctx.setFill=this.options.background;ctx.fillRect(0,0,this.options.width,this.options.height);ctx.drawImage(image,0,0);return this.getContextData(ctx)};GIF.prototype.getTask=function(frame){var index,task;index=this.frames.indexOf(frame);task={index:index,last:index===this.frames.length-1,delay:frame.delay,transparent:frame.transparent,width:this.options.width,height:this.options.height,quality:this.options.quality,dither:this.options.dither,globalPalette:this.options.globalPalette,repeat:this.options.repeat,canTransfer:browser.name==="chrome"};if(frame.data!=null){task.data=frame.data}else if(frame.context!=null){task.data=this.getContextData(frame.context)}else if(frame.image!=null){task.data=this.getImageData(frame.image)}else{throw new Error("Invalid frame")}return task};GIF.prototype.log=function(){var args;args=1<=arguments.length?slice.call(arguments,0):[];if(!this.options.debug){return}return console.log.apply(console,args)};return GIF}(EventEmitter);module.exports=GIF},{"./browser.coffee":2,events:1}]},{},[3])(3)});
+//# sourceMappingURL=gif.js.map
+  </script>
+  <style>
+    /* ==========================================================
+       THEME VARIABLES �?switch by toggling [data-theme] on <html>
+       ========================================================== */
+    :root,
+    [data-theme="dark"] {
+      --bg: #020617;
+      --grid: #1e293b;
+      --text: #ffffff;
+      --text-muted: #94a3b8;
+      --text-dim: #475569;
+      /* UI chrome (menu hints, footer) needs more contrast than SVG .t-dim accents */
+      --text-faint: #7d8da1;
+
+      --panel: rgba(15, 23, 42, 0.5);
+      --panel-border: #1e293b;
+      --lane-fill: rgba(15, 23, 42, 0.22);
+      --lane-stroke: #334155;
+
+      --arrow: #64748b;
+      --arrow-emphasis: #34d399;
+
+      /* Opaque mask color used behind semi-transparent component fills
+         so the arrows drawn underneath are properly hidden. */
+      --mask: #0f172a;
+
+      --frontend-fill:    rgba(8, 51, 68, 0.4);
+      --frontend-stroke:  #22d3ee;
+      --backend-fill:     rgba(6, 78, 59, 0.4);
+      --backend-stroke:   #34d399;
+      --database-fill:    rgba(76, 29, 149, 0.4);
+      --database-stroke:  #a78bfa;
+      --cloud-fill:       rgba(120, 53, 15, 0.3);
+      --cloud-stroke:     #fbbf24;
+      --security-fill:    rgba(136, 19, 55, 0.4);
+      --security-stroke:  #fb7185;
+      --messagebus-fill:  rgba(251, 146, 60, 0.3);
+      --messagebus-stroke:#fb923c;
+      --external-fill:    rgba(30, 41, 59, 0.5);
+      --external-stroke:  #94a3b8;
+
+      --toolbar-bg:       rgba(15, 23, 42, 0.8);
+      --toolbar-border:   #334155;
+      --toolbar-text:     #e2e8f0;
+      --toolbar-hover:    rgba(15, 23, 42, 0.95);
+      --toolbar-menu-bg:  #0f172a;
+    }
+
+    [data-theme="light"] {
+      --bg: #f8fafc;
+      --grid: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --text-dim: #94a3b8;
+      --text-faint: #64748b;
+
+      --panel: #ffffff;
+      --panel-border: #e2e8f0;
+      --lane-fill: rgba(248, 250, 252, 0.65);
+      --lane-stroke: #cbd5e1;
+
+      --arrow: #94a3b8;
+      --arrow-emphasis: #059669;
+
+      --mask: #ffffff;
+
+      --frontend-fill:    rgba(34, 211, 238, 0.15);
+      --frontend-stroke:  #0891b2;
+      --backend-fill:     rgba(52, 211, 153, 0.18);
+      --backend-stroke:   #059669;
+      --database-fill:    rgba(167, 139, 250, 0.2);
+      --database-stroke:  #7c3aed;
+      --cloud-fill:       rgba(251, 191, 36, 0.18);
+      --cloud-stroke:     #d97706;
+      --security-fill:    rgba(251, 113, 133, 0.15);
+      --security-stroke:  #e11d48;
+      --messagebus-fill:  rgba(251, 146, 60, 0.15);
+      --messagebus-stroke:#ea580c;
+      --external-fill:    rgba(148, 163, 184, 0.18);
+      --external-stroke:  #64748b;
+
+      --toolbar-bg:       rgba(255, 255, 255, 0.92);
+      --toolbar-border:   #cbd5e1;
+      --toolbar-text:     #334155;
+      --toolbar-hover:    #ffffff;
+      --toolbar-menu-bg:  #ffffff;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', 'Noto Sans Mono CJK SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', monospace;
+      background: var(--bg);
+      min-height: 100vh;
+      padding: 2rem;
+      color: var(--text);
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; }
+
+    .header { margin-bottom: 2rem; }
+
+    .header-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .pulse-dot {
+      width: 12px;
+      height: 12px;
+      background: var(--frontend-stroke);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      margin-left: 1.75rem;
+    }
+
+    .diagram-container {
+      background: var(--panel);
+      border-radius: 1rem;
+      border: 1px solid var(--panel-border);
+      padding: 1.5rem;
+      overflow-x: auto;
+    }
+
+    svg {
+      width: 100%;
+      min-width: min(900px, 100%);
+      display: block;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+
+    .card {
+      background: var(--panel);
+      border-radius: 0.75rem;
+      border: 1px solid var(--panel-border);
+      padding: 1.25rem;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .card-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .card-dot.cyan     { background: var(--frontend-stroke); }
+    .card-dot.emerald  { background: var(--backend-stroke); }
+    .card-dot.violet   { background: var(--database-stroke); }
+    .card-dot.amber    { background: var(--cloud-stroke); }
+    .card-dot.rose     { background: var(--security-stroke); }
+    .card-dot.orange   { background: var(--messagebus-stroke); }
+    .card-dot.slate    { background: var(--external-stroke); }
+
+    .card h3 { font-size: 0.875rem; font-weight: 600; color: var(--text); }
+
+    .card ul {
+      list-style: none;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+
+    .card li { margin-bottom: 0.375rem; }
+
+    .footer {
+      text-align: center;
+      margin-top: 1.5rem;
+      color: var(--text-faint);
+      font-size: 0.75rem;
+    }
+
+    /* ==========================================================
+       Print stylesheet �?hide interactive controls, force light,
+       drop the grid so the diagram doesn't waste ink, use landscape
+       so wide diagrams fit, pack summary cards into 2 columns to
+       avoid an orphan card on a trailing page.
+       ========================================================== */
+    @page { size: landscape; margin: 1.5cm; }
+
+    @media print {
+      /* Force the FULL light palette �?including component fills/strokes and
+         lane/arrow colors �?so printing from dark theme doesn't put neon
+         strokes and translucent dark fills on white paper. */
+      :root, [data-theme="dark"], [data-theme="light"] {
+        --bg: #ffffff;
+        --grid: transparent;
+        --panel: #ffffff;
+        --panel-border: #e2e8f0;
+        --text: #0f172a;
+        --text-muted: #475569;
+        --text-dim: #94a3b8;
+        --text-faint: #64748b;
+        --mask: #ffffff;
+        --lane-fill: rgba(248, 250, 252, 0.65);
+        --lane-stroke: #cbd5e1;
+        --arrow: #94a3b8;
+        --arrow-emphasis: #059669;
+        --frontend-fill:    rgba(34, 211, 238, 0.15);
+        --frontend-stroke:  #0891b2;
+        --backend-fill:     rgba(52, 211, 153, 0.18);
+        --backend-stroke:   #059669;
+        --database-fill:    rgba(167, 139, 250, 0.2);
+        --database-stroke:  #7c3aed;
+        --cloud-fill:       rgba(251, 191, 36, 0.18);
+        --cloud-stroke:     #d97706;
+        --security-fill:    rgba(251, 113, 133, 0.15);
+        --security-stroke:  #e11d48;
+        --messagebus-fill:  rgba(251, 146, 60, 0.15);
+        --messagebus-stroke:#ea580c;
+        --external-fill:    rgba(148, 163, 184, 0.18);
+        --external-stroke:  #64748b;
+      }
+      body { background: #ffffff !important; padding: 0; }
+      .container { max-width: none; }
+      .toolbar, .archify-toast, .no-print { display: none !important; }
+      .diagram-container, .card { box-shadow: none; border-color: #e2e8f0; }
+      .cards { grid-template-columns: 1fr 1fr; }
+      /* Ensure elements break sensibly across pages */
+      .card { break-inside: avoid; page-break-inside: avoid; }
+      .diagram-container { break-inside: avoid; page-break-inside: avoid; }
+      h1, .subtitle { color: #0f172a; }
+    }
+
+    /* ==========================================================
+       TOOLBAR (theme toggle + export menu)
+       ========================================================== */
+    .toolbar {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      display: flex;
+      gap: 0.5rem;
+      z-index: 100;
+    }
+    .toolbar button {
+      background: var(--toolbar-bg);
+      color: var(--toolbar-text);
+      border: 1px solid var(--toolbar-border);
+      padding: 0.5rem 0.875rem;
+      border-radius: 0.5rem;
+      font-family: inherit;
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: background 0.15s, border-color 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+    }
+    .toolbar button:hover {
+      background: var(--toolbar-hover);
+      border-color: var(--arrow);
+    }
+    .toolbar button:focus-visible {
+      outline: 2px solid var(--frontend-stroke);
+      outline-offset: 2px;
+    }
+    .toolbar .export-wrap { position: relative; }
+    .toolbar .export-menu {
+      position: absolute;
+      top: calc(100% + 0.375rem);
+      right: 0;
+      background: var(--toolbar-menu-bg);
+      border: 1px solid var(--toolbar-border);
+      border-radius: 0.5rem;
+      padding: 0.375rem;
+      min-width: 160px;
+      display: none;
+      flex-direction: column;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    }
+    .toolbar .export-menu.open { display: flex; }
+    .toolbar .export-menu button {
+      background: transparent;
+      border: 0;
+      justify-content: space-between;
+      width: 100%;
+      text-align: left;
+      padding: 0.5rem 0.75rem;
+    }
+    .toolbar .export-menu button:hover {
+      background: var(--toolbar-hover);
+    }
+    .toolbar .export-menu .hint {
+      color: var(--text-faint);
+      font-size: 0.625rem;
+    }
+    .toolbar .export-menu hr {
+      border: 0;
+      border-top: 1px solid var(--toolbar-border);
+      margin: 0.25rem 0.375rem;
+      opacity: 0.5;
+    }
+
+    /* GIF/WebM export settings dialog */
+    .archify-dialog-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+    }
+    .archify-dialog-overlay.open { display: flex; }
+    .archify-dialog {
+      background: var(--toolbar-menu-bg);
+      border: 1px solid var(--toolbar-border);
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      min-width: 320px;
+      max-width: 400px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .archify-dialog h3 {
+      margin: 0 0 1rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .archify-dialog label {
+      display: block;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .archify-dialog .form-row {
+      margin-bottom: 1rem;
+    }
+    .archify-dialog select {
+      width: 100%;
+      padding: 0.5rem 0.625rem;
+      background: var(--bg);
+      color: var(--text-primary);
+      border: 1px solid var(--toolbar-border);
+      border-radius: 0.375rem;
+      font-size: 0.8rem;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .archify-dialog select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .archify-dialog .dialog-actions {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-end;
+      margin-top: 1.25rem;
+    }
+    .archify-dialog .btn {
+      padding: 0.5rem 1rem;
+      border: 1px solid var(--toolbar-border);
+      border-radius: 0.375rem;
+      background: transparent;
+      color: var(--text-primary);
+      font-size: 0.8rem;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .archify-dialog .btn:hover {
+      background: var(--toolbar-hover);
+    }
+    .archify-dialog .btn-primary {
+      background: var(--toolbar-hover);
+      color: var(--text-primary);
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+    .archify-dialog .btn-primary:hover {
+      background: var(--toolbar-border);
+    }
+    .archify-dialog .form-hint {
+      font-size: 0.65rem;
+      color: var(--text-faint);
+      margin-top: 0.25rem;
+    }
+
+    /* Toast �?brief feedback for actions like "copied" */
+    .archify-toast {
+      position: fixed;
+      top: 1rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(-8px);
+      background: var(--toolbar-menu-bg);
+      color: var(--text);
+      border: 1px solid var(--toolbar-border);
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      font-family: inherit;
+      font-size: 0.75rem;
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 200;
+      pointer-events: none;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    }
+    .archify-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .toolbar {
+        position: static;
+        justify-content: flex-end;
+        margin-bottom: 1rem;
+      }
+      .header { margin-bottom: 1.25rem; }
+      .header-row {
+        gap: 0.75rem;
+        align-items: flex-start;
+      }
+      h1 {
+        font-size: 1.25rem;
+        line-height: 1.25;
+      }
+      .subtitle {
+        margin-left: 0;
+        font-size: 0.8125rem;
+        line-height: 1.55;
+      }
+      .diagram-container {
+        padding: 0.75rem;
+        border-radius: 0.75rem;
+      }
+      .cards {
+        grid-template-columns: 1fr;
+        margin-top: 1rem;
+      }
+    }
+
+    /* ==========================================================
+       SVG SEMANTIC CLASSES �?use these instead of inline fill/stroke
+       ========================================================== */
+    .c-grid       { stroke: var(--grid); fill: none; }
+    .c-mask       { fill: var(--mask); stroke: none; }
+
+    .c-frontend   { fill: var(--frontend-fill);   stroke: var(--frontend-stroke); }
+    .c-backend    { fill: var(--backend-fill);    stroke: var(--backend-stroke); }
+    .c-database   { fill: var(--database-fill);   stroke: var(--database-stroke); }
+    .c-cloud      { fill: var(--cloud-fill);      stroke: var(--cloud-stroke); }
+    .c-security   { fill: var(--security-fill);   stroke: var(--security-stroke); }
+    .c-messagebus { fill: var(--messagebus-fill); stroke: var(--messagebus-stroke); }
+    .c-external   { fill: var(--external-fill);   stroke: var(--external-stroke); }
+
+    /* Text helpers */
+    .t-primary { fill: var(--text); }
+    .t-muted   { fill: var(--text-muted); }
+    .t-dim     { fill: var(--text-dim); }
+    .t-frontend   { fill: var(--frontend-stroke); }
+    .t-backend    { fill: var(--backend-stroke); }
+    .t-database   { fill: var(--database-stroke); }
+    .t-cloud      { fill: var(--cloud-stroke); }
+    .t-security   { fill: var(--security-stroke); }
+    .t-messagebus { fill: var(--messagebus-stroke); }
+    .t-external   { fill: var(--external-stroke); }
+
+    /* Arrows */
+    .a-default   { stroke: var(--arrow); fill: none; }
+    .a-emphasis  { stroke: var(--arrow-emphasis); fill: none; }
+    .a-security  { stroke: var(--security-stroke); fill: none; stroke-dasharray: 5,5; }
+    .a-dashed    { stroke: var(--database-stroke); fill: none; stroke-dasharray: 4,4; }
+
+    /* ==========================================================
+       FLOWING ANIMATION EFFECTS
+       ========================================================== */
+    @keyframes flowDash {
+      to {
+        stroke-dashoffset: -20;
+      }
+    }
+
+    @keyframes flowPulse {
+      0%, 100% {
+        opacity: 0.6;
+      }
+      50% {
+        opacity: 1;
+      }
+    }
+
+    /* Flowing animation for emphasis paths (main data flow) */
+    .a-emphasis {
+      stroke-dasharray: 8 4;
+      animation: flowDash 0.8s linear infinite, flowPulse 2s ease-in-out infinite;
+      filter: drop-shadow(0 0 3px var(--arrow-emphasis));
+    }
+
+    /* Slower flowing for default paths */
+    .a-default {
+      stroke-dasharray: 6 6;
+      animation: flowDash 1.2s linear infinite;
+      filter: drop-shadow(0 0 2px var(--arrow));
+    }
+
+    /* Dashed async paths */
+    .a-dashed {
+      stroke-dasharray: 4 4;
+      animation: flowDash 1s linear infinite;
+    }
+
+    /* Security paths */
+    .a-security {
+      stroke-dasharray: 5 5;
+      animation: flowDash 1s linear infinite;
+    }
+
+    /* Arrowhead markers reference these */
+    .m-default   { fill: var(--arrow); }
+    .m-emphasis  { fill: var(--arrow-emphasis); }
+    .m-security  { fill: var(--security-stroke); }
+    .m-dashed    { fill: var(--database-stroke); }
+
+    /* Dashed boundary variants */
+    .c-security-group { fill: transparent; stroke: var(--security-stroke); stroke-dasharray: 4,4; }
+    .c-region         { fill: rgba(251, 191, 36, 0.05); stroke: var(--cloud-stroke); stroke-dasharray: 8,4; }
+    .c-lane           { fill: var(--lane-fill); stroke: var(--lane-stroke); stroke-dasharray: 6,6; }
+  </style>
+<style id="arch-presentation-style">
+/* Additive styles: original Archify toolbar, palettes and export scripts stay intact. */
+body { padding: 28px clamp(14px, 2.5vw, 38px); }
+.container { max-width: 1680px; }
+.header { padding-right: 210px; margin-bottom: 22px; }
+.header h1 { font-size: 21px; }
+.header .subtitle { font-size: 11px; line-height: 1.8; }
+.arch-shell { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+.arch-evidence { color: var(--text-muted); font-size: 11px; line-height: 1.9; border-left: 2px solid var(--cloud-stroke); background: var(--cloud-fill); padding: 10px 14px; margin-bottom: 15px; }
+.arch-evidence strong { color: var(--cloud-stroke); }
+.arch-evidence a { color: var(--frontend-stroke); text-decoration: none; margin-left: 10px; }
+.arch-control-panel { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
+.arch-controls { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; }
+.arch-shell button, .arch-shell select { font: inherit; color: var(--text); background: var(--mask); border: 1px solid var(--panel-border); border-radius: 6px; padding: 8px 11px; cursor: pointer; font-size: 11px; }
+.arch-shell button:hover { border-color: var(--backend-stroke); background: var(--backend-fill); }
+.arch-shell button[aria-pressed='true'] { border-color: var(--backend-stroke); background: var(--backend-fill); color: var(--backend-stroke); }
+.arch-shell :focus-visible { outline: 2px solid var(--frontend-stroke); outline-offset: 3px; }
+.arch-shell label { color: var(--text-muted); font-size: 11px; display: flex; align-items: center; gap: 5px; }
+.arch-shell input { accent-color: var(--backend-stroke); }
+.arch-controls .arch-space { flex: 1; }
+.arch-clock { font: 10px ui-monospace, monospace; color: var(--text-muted); min-width: 50px; }
+.arch-progress { width: 100%; height: 2px; margin-top: 13px; border: 0; background: var(--panel-border); display: block; }
+.arch-progress::-webkit-progress-bar { background: var(--panel-border); }
+.arch-progress::-webkit-progress-value { background: var(--backend-stroke); }
+.arch-progress::-moz-progress-bar { background: var(--backend-stroke); }
+.arch-tabs { display: flex; flex-wrap: wrap; gap: 5px; margin: 12px 0 10px; }
+.arch-tabs button { border: 0; color: var(--text-muted); font-size: 10px; padding: 7px 9px; background: transparent; }
+.arch-tabs button[aria-current='step'] { color: var(--backend-stroke); background: var(--backend-fill); }
+.arch-tabs .arch-branch { margin-left: 4px; color: var(--security-stroke); }
+.arch-help { font-size: 10px; line-height: 1.8; color: var(--text-muted); }
+.arch-now { display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, .55fr); gap: 25px; align-items: center; padding: 16px 18px; margin-bottom: 12px; border-left: 2px solid var(--backend-stroke); background: var(--backend-fill); }
+.arch-now .arch-kicker { color: var(--backend-stroke); font: 9px ui-monospace, monospace; letter-spacing: .08em; }
+.arch-now h2 { font-size: 18px; font-weight: 500; line-height: 1.6; margin: 5px 0; }
+.arch-now p { color: var(--text-muted); font-size: 12px; line-height: 1.9; }
+.arch-now blockquote { border-left: 1px solid var(--backend-stroke); padding-left: 16px; font-size: 13px; line-height: 1.9; }
+.arch-now cite { display: block; font-style: normal; color: var(--text-muted); font-size: 9px; margin-top: 5px; }
+.arch-shell .diagram-container { border-radius: 10px; padding: 8px; }
+.arch-scale { min-width: 1000px; width: 100%; }
+.arch-scale svg { min-width: 0; }
+.arch-reading { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+.arch-reading article { padding: 15px 17px; border: 1px solid var(--panel-border); border-radius: 8px; background: var(--panel); }
+.arch-reading h3 { color: var(--backend-stroke); font-size: 10px; font-weight: 500; margin-bottom: 7px; }
+.arch-reading p { color: var(--text-muted); font-size: 12px; line-height: 1.85; }
+.arch-rule { padding: 14px 17px; border-left: 2px solid var(--security-stroke); background: var(--security-fill); margin-top: 12px; font-size: 11px; color: var(--text-muted); line-height: 1.9; }
+.arch-rule strong { font-size: 10px; color: var(--security-stroke); margin-right: 14px; }
+.arch-links { margin-top: 15px; font-size: 11px; color: var(--text-muted); line-height: 1.9; }
+.arch-links a { color: var(--frontend-stroke); }
+.arch-shell:fullscreen { background: var(--bg); overflow: auto; padding: 18px; }
+.arch-shell:fullscreen .arch-evidence { display: none; }
+.arch-shell:fullscreen .arch-now { padding: 10px 15px; }
+.arch-shell:fullscreen .arch-now h2 { font-size: 15px; }
+.arch-shell:fullscreen .arch-now p { display: none; }
+/* These c-* selectors are deliberately included by the native SVG exporter. */
+svg.c-architecture { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, 'PingFang SC', 'Microsoft YaHei', monospace; }
+.c-flow-edge, .c-flow-label { opacity: .14; transition: opacity .25s ease; }
+.c-flow-dot { opacity: 0; }
+.c-flow-node { opacity: .38; transition: opacity .25s ease; }
+.c-flow-edge.is-active, .c-flow-dot.is-active, .c-flow-label.is-active, .c-flow-node.is-active { opacity: 1; }
+.c-flow-node .t-primary { font-size: 12px; }
+.c-flow-node[data-node='elder'] .t-primary, .c-flow-node[data-node='assistant'] .t-primary, .c-flow-node[data-node='agent'] .t-primary, .c-flow-node[data-node='family'] .t-primary { font-size: 14px; }
+.c-flow-node.is-active > rect:not(.c-mask) { stroke-width: 2; }
+.c-flow-node.is-blocked { opacity: .85; }
+.c-flow-node.is-blocked > rect:not(.c-mask) { stroke: var(--security-stroke); stroke-dasharray: 4,4; }
+.c-flow-badge { fill: var(--backend-stroke); font-size: 8px; }
+.c-flow-node.is-blocked .c-flow-badge { fill: var(--security-stroke); }
+svg.c-flow-paused .a-default, svg.c-flow-paused .a-emphasis, svg.c-flow-paused .a-dashed, svg.c-flow-paused .a-security { animation-play-state: paused; }
+@media (max-width: 900px) {
+  .arch-now { grid-template-columns: 1fr; gap: 10px; }
+  .arch-now blockquote { font-size: 12px; }
+  .arch-reading { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  body { padding: 14px; }
+  .header { padding-right: 0; }
+  .header h1 { font-size: 17px; line-height: 1.7; }
+  .arch-controls { gap: 7px; }
+  .arch-controls .arch-space { display: none; }
+  .arch-shell label, .arch-shell button, .arch-shell select { font-size: 10px; }
+  .arch-now { padding: 13px; }
+  .arch-now h2 { font-size: 16px; }
+  .arch-tabs .arch-branch { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .c-flow-edge, .c-flow-label, .c-flow-node { transition: none; }
+  .pulse-dot { animation: none; }
+}
+@media print {
+  .arch-controls, .arch-tabs, .arch-help, .arch-progress { display: none; }
+  .arch-now, .arch-reading article { break-inside: avoid; }
+  .arch-scale { min-width: 0; width: 100% !important; }
+  .arch-evidence a { display: none; }
+}
+
+</style>
+</head>
+<body>
+  <!-- Export settings dialog for GIF/WebM -->
+  <div class="archify-dialog-overlay" id="archify-gif-dialog">
+    <div class="archify-dialog">
+      <h3>Export <span id="gif-format">GIF</span> Settings</h3>
+      <div class="form-row">
+        <label for="gif-scale">Resolution</label>
+        <select id="gif-scale">
+          <option value="1">1x (original size)</option>
+          <option value="2" selected>2x (recommended)</option>
+          <option value="3">3x (high quality)</option>
+          <option value="4">4x (ultra HD)</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label for="gif-fps">Frame Rate (FPS)</label>
+        <select id="gif-fps">
+          <option value="10">10 fps (small file)</option>
+          <option value="15">15 fps</option>
+          <option value="20" selected>20 fps (smooth)</option>
+          <option value="24">24 fps (cinematic)</option>
+          <option value="30">30 fps (max smooth)</option>
+          <option value="60">60 fps (ultra smooth)</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label for="gif-duration">Duration</label>
+        <select id="gif-duration">
+          <option value="2">2 seconds</option>
+          <option value="3" selected>3 seconds</option>
+          <option value="5">5 seconds</option>
+          <option value="8">8 seconds</option>
+        </select>
+      </div>
+      <div class="form-hint" id="gif-info">60 frames · 20 fps · 3s</div>
+      <div class="dialog-actions">
+        <button class="btn" id="gif-cancel" type="button">Cancel</button>
+        <button class="btn btn-primary" id="gif-confirm" type="button">Export</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toolbar: theme toggle + export menu (present on every generated diagram)
+       Keyboard: T toggles theme, E opens export menu (when no input focused) -->
+  <div class="toolbar" role="toolbar" aria-label="Diagram actions">
+    <button id="btn-theme" type="button"
+            title="Toggle theme (T)"
+            aria-label="Toggle color theme"
+            aria-pressed="false">
+      <span id="theme-icon" aria-hidden="true">&#9790;</span>
+      <span id="theme-label">Dark</span>
+    </button>
+    <div class="export-wrap">
+      <button id="btn-export" type="button"
+              title="Export diagram (E)"
+              aria-label="Export diagram"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              aria-controls="export-menu">
+        Export <span aria-hidden="true">&#9662;</span>
+      </button>
+      <div class="export-menu" id="export-menu" role="menu" aria-label="Export">
+        <button data-action="copy"  type="button" role="menuitem" tabindex="-1">Copy to clipboard <span class="hint">PNG</span></button>
+        <hr role="separator">
+        <button data-format="png"   type="button" role="menuitem" tabindex="-1">Download PNG</button>
+        <button data-format="jpeg"  type="button" role="menuitem" tabindex="-1">Download JPEG</button>
+        <button data-format="webp"  type="button" role="menuitem" tabindex="-1">Download WebP</button>
+        <hr role="separator">
+        <button data-format="svg"   type="button" role="menuitem" tabindex="-1">Download SVG <span class="hint">vector</span></button>
+        <hr role="separator">
+        <button data-format="gif"   type="button" role="menuitem" tabindex="-1">Export GIF <span class="hint">animated</span></button>
+        <button data-format="webm"  type="button" role="menuitem" tabindex="-1">Export WebM <span class="hint">video</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-row">
+        <div class="pulse-dot"></div>
+        <h1>AgeGuard · 从一句闲聊到家人参与</h1>
+      </div>
+      <p class="subtitle">老人 ↔ AI 语音助理 ｜ 后台 Agent + 受控业务 ｜ 授权家庭连接 · 架构设计与情景动画，非已接通系统</p>
+    </div>
+
+<main class="arch-shell" id="arch-view">
+    <aside class="arch-evidence"><strong>架构设计 / 情景动画</strong>：沿用陈阿姨养鱼的虚构故事。所有转写、Agent、授权、存储、调度与家属操作均为模拟说明，不是已接通能力。<a href="conversation-demo.html">打开完整对话演示 ↗</a></aside>
+    <section class="arch-control-panel" aria-label="架构讲解控制">
+      <div class="arch-controls">
+        <button type="button" id="arch-prev">← 上一章</button><button type="button" id="arch-next">下一章 →</button>
+        <button type="button" id="arch-overview" aria-pressed="false">架构总览</button>
+        <label><input type="checkbox" id="arch-auto" checked> 自动讲解</label>
+        <label><input type="checkbox" id="arch-flow" checked> 流动动画</label>
+        <label>每章 <select id="arch-period"><option value="6000">6 秒</option><option value="9000" selected>9 秒</option><option value="12000">12 秒</option></select></label>
+        <span class="arch-space"></span><span id="arch-position" class="arch-clock">01 / 09</span>
+        <label>缩放 <select id="arch-zoom"><option value="100">100%</option><option value="125">125%</option><option value="150">150%</option></select></label>
+        <button type="button" id="arch-fullscreen">全屏看图</button>
+      </div>
+      <progress class="arch-progress" id="arch-progress" max="1" value="0" aria-label="当前章节播放进度"></progress>
+      <nav class="arch-tabs" id="arch-tabs" aria-label="信息处理章节"><button type="button" data-chapter="listen">01 语音与并行</button>
+<button type="button" data-chapter="recall">02 记忆获取</button>
+<button type="button" data-chapter="remember">03 记忆新增</button>
+<button type="button" data-chapter="remind">04 个人提醒</button>
+<button type="button" data-chapter="consent">05 授权分享</button>
+<button type="button" data-chapter="request">06 家属待办</button>
+<button type="button" data-chapter="family">07 家属可见</button>
+<button type="button" data-chapter="respond">08 双向参与</button>
+<button type="button" data-chapter="return">09 反馈闭环</button>
+<button type="button" data-chapter="deny" class="arch-branch">边界：拒绝分享</button>
+<button type="button" data-chapter="failure" class="arch-branch">边界：保存失败</button></nav>
+      <p class="arch-help" id="arch-message" role="status">高亮表示当前信息路径，暗线保留整体上下文。自动讲解与流动动画可分别暂停；小屏可在图内横向滚动。空格切换讲解，方向键翻章。</p>
+    </section>
+    <section class="arch-now" aria-label="当前章节说明">
+      <div><span class="arch-kicker">SCENARIO → INFORMATION → ACTION</span><h2 id="arch-now-title"></h2><p id="arch-now-summary"></p></div>
+      <blockquote><span id="arch-now-quote"></span><cite id="arch-now-source"></cite></blockquote>
+    </section>
+    <!-- Main Diagram -->
+    <div class="diagram-container" aria-label="可横向滚动的架构图"><div class="arch-scale" id="arch-scale">
+      <svg class="c-architecture" viewBox="0 0 1520 950" role="img" aria-label="AgeGuard · 从一句闲聊到家人参与 — 老人 ↔ AI 语音助理 ｜ 后台 Agent + 受控业务 ｜ 授权家庭连接 · 架构设计与情景动画，非已接通系统 (architecture diagram)">
+        <!-- Definitions -->
+        <defs>
+          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-default" />
+          </marker>
+          <marker id="arrowhead-emphasis" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-emphasis" />
+          </marker>
+          <marker id="arrowhead-security" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-security" />
+          </marker>
+          <marker id="arrowhead-dashed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-dashed" />
+          </marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" class="c-grid" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+
+        <!-- Background Grid -->
+        <rect width="100%" height="100%" fill="url(#grid)" />
+
+        <!-- Boundaries (behind everything) -->
+        <rect x="580" y="50" width="270" height="750" rx="12" class="c-region" stroke-width="1"/>
+        <text x="588" y="68" class="t-cloud" font-size="9" font-weight="600">平台后台 / 受控处理</text>
+
+        <rect x="920" y="420" width="530" height="380" rx="8" class="c-security-group" stroke-width="1"/>
+        <text x="928" y="438" class="t-security" font-size="9" font-weight="600">授权家庭协作区 / 非私人记忆副本</text>
+
+        <text x="40" y="60" class="t-primary" font-size="15" font-weight="600" id="arch-svg-title">四角色 / 双向信息闭环</text>
+<text x="40" y="84" class="t-muted" font-size="10" id="arch-svg-quote">设计架构 / 虚构养鱼情景</text>
+<!-- Connection paths (before components for correct z-order) -->
+<g class="c-flow-edge" data-edge="0"><path d="M 220 275 L 300 275" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/></g>
+        <g class="c-flow-edge" data-edge="1"><path d="M 405 320 L 405 362 Q 405 370 397 370 L 138 370 Q 130 370 130 362 L 130 320" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/></g>
+        <g class="c-flow-edge" data-edge="2"><path d="M 405 230 L 405 123 Q 405 115 413 115 L 610 115" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/></g>
+        <g class="c-flow-edge" data-edge="3"><path d="M 715 150 L 715 230" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/></g>
+        <g class="c-flow-edge" data-edge="4"><path d="M 715 320 L 715 450" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/></g>
+        <g class="c-flow-edge" data-edge="5"><path d="M 820 495 L 907 495 Q 915 495 915 487 L 915 283 Q 915 275 907 275 L 820 275" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/></g>
+        <g class="c-flow-edge" data-edge="6"><path d="M 610 495 L 510 495" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/></g>
+        <g class="c-flow-edge" data-edge="7"><path d="M 405 450 L 405 413 Q 405 405 413 405 L 707 405 Q 715 405 715 413 L 715 450" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/></g>
+        <g class="c-flow-edge" data-edge="8"><path d="M 610 275 L 510 275" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/></g>
+        <g class="c-flow-edge" data-edge="9"><path d="M 715 540 L 715 690" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/></g>
+        <g class="c-flow-edge" data-edge="10"><path d="M 610 735 L 573 735 Q 565 735 565 727 L 565 503 Q 565 495 573 495 L 610 495" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/></g>
+        <g class="c-flow-edge" data-edge="11"><path d="M 820 495 L 950 495" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/></g>
+        <g class="c-flow-edge" data-edge="12"><path d="M 1160 495 L 1240 495" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/></g>
+        <g class="c-flow-edge" data-edge="13"><path d="M 1330 450 L 1330 403 Q 1330 395 1322 395 L 1208 395 Q 1200 395 1200 387 L 1200 283 Q 1200 275 1208 275 L 1240 275" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/></g>
+        <g class="c-flow-edge" data-edge="14"><path d="M 1330 320 L 1330 450" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/></g>
+        <g class="c-flow-edge" data-edge="15"><path d="M 820 495 L 877 495 Q 885 495 885 503 L 885 727 Q 885 735 893 735 L 950 735" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/></g>
+        <g class="c-flow-edge" data-edge="16"><path d="M 1160 735 L 1192 735 Q 1200 735 1200 727 L 1200 598 Q 1200 590 1208 590 L 1322 590 Q 1330 590 1330 582 L 1330 540" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/></g>
+        <g class="c-flow-edge" data-edge="17"><path d="M 1420 495 L 1462 495 Q 1470 495 1470 503 L 1470 832 Q 1470 840 1462 840 L 863 840 Q 855 840 855 832 L 855 503 Q 855 495 847 495 L 820 495" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/></g>
+        <!-- Animated flowing dots -->
+<g class="c-flow-dot" data-edge="0"><circle r="3" fill="var(--arrow-emphasis)" opacity="0.9">
+          <animateMotion dur="2s" repeatCount="indefinite" path="M 220 275 L 300 275"/>
+        </circle></g>
+        <g class="c-flow-dot" data-edge="1"><circle r="3" fill="var(--arrow-emphasis)" opacity="0.9">
+          <animateMotion dur="2.5s" repeatCount="indefinite" path="M 405 320 L 405 362 Q 405 370 397 370 L 138 370 Q 130 370 130 362 L 130 320"/>
+        </circle></g>
+        <g class="c-flow-dot" data-edge="2"><circle r="2" fill="var(--database-stroke)" opacity="0.7">
+          <animateMotion dur="3s" repeatCount="indefinite" path="M 405 230 L 405 123 Q 405 115 413 115 L 610 115"/>
+        </circle></g>
+        <g class="c-flow-dot" data-edge="3"><circle r="2" fill="var(--database-stroke)" opacity="0.7">
+          <animateMotion dur="2.2s" repeatCount="indefinite" path="M 715 150 L 715 230"/>
+        </circle></g>
+        <g class="c-flow-dot" data-edge="4"><circle r="2" fill="var(--security-stroke)" opacity="0.7">
+          <animateMotion dur="2.5s" repeatCount="indefinite" path="M 715 320 L 715 450"/>
+        </circle></g>
+        <g class="c-flow-dot" data-edge="5"><circle r="2.5" fill="var(--arrow)" opacity="0.8">
+          <animateMotion dur="2.8s" repeatCount="indefinite" path="M 820 495 L 907 495 Q 915 495 915 487 L 915 283 Q 915 275 907 275 L 820 275"/>
+        </circle></g>
+        <g class="c-flow-dot" data-edge="6"><circle r="2" fill="var(--security-stroke)" opacity="0.7">
+          <animateMotion dur="2.5s" repeatCount="indefinite" path="M 610 495 L 510 495"/>
+        </circle></g>
+        <g class="c-flow-dot" data-edge="7"><circle r="2" fill="var(--database-stroke)" opacity="0.7">
+          <animateMotion dur="2.6s" repeatCount="indefinite" path="M 405 450 L 405 413 Q 405 405 413 405 L 707 405 Q 715 405 715 413 L 715 450"/>
+        </circle></g>
+        <g class="c-flow-dot" data-edge="8"><circle r="2.5" fill="var(--arrow)" opacity="0.8">
+          <animateMotion dur="2.5s" repeatCount="indefinite" path="M 610 275 L 510 275"/>
+        </circle></g>
+        <g class="c-flow-dot" data-edge="9"><circle r="2" fill="var(--security-stroke)" opacity="0.7">
+          <animateMotion dur="3s" repeatCount="indefinite" path="M 715 540 L 715 690"/>
+        </circle></g>
+        <g class="c-flow-dot" data-edge="10"><circle r="2" fill="var(--database-stroke)" opacity="0.7">
+          <animateMotion dur="2.6s" repeatCount="indefinite" path="M 610 735 L 573 735 Q 565 735 565 727 L 565 503 Q 565 495 573 495 L 610 495"/>
+        </circle></g>
+        <g class="c-flow-dot" data-edge="11"><circle r="2" fill="var(--security-stroke)" opacity="0.7">
+          <animateMotion dur="3s" repeatCount="indefinite" path="M 820 495 L 950 495"/>
+        </circle></g>
+        <g class="c-flow-dot" data-edge="12"><circle r="3" fill="var(--arrow-emphasis)" opacity="0.9">
+          <animateMotion dur="2s" repeatCount="indefinite" path="M 1160 495 L 1240 495"/>
+        </circle></g>
+        <g class="c-flow-dot" data-edge="13"><circle r="3" fill="var(--arrow-emphasis)" opacity="0.9">
+          <animateMotion dur="2.5s" repeatCount="indefinite" path="M 1330 450 L 1330 403 Q 1330 395 1322 395 L 1208 395 Q 1200 395 1200 387 L 1200 283 Q 1200 275 1208 275 L 1240 275"/>
+        </circle></g>
+        <g class="c-flow-dot" data-edge="14"><circle r="2.5" fill="var(--arrow)" opacity="0.8">
+          <animateMotion dur="3.1s" repeatCount="indefinite" path="M 1330 320 L 1330 450"/>
+        </circle></g>
+        <g class="c-flow-dot" data-edge="15"><circle r="2" fill="var(--security-stroke)" opacity="0.7">
+          <animateMotion dur="3s" repeatCount="indefinite" path="M 820 495 L 877 495 Q 885 495 885 503 L 885 727 Q 885 735 893 735 L 950 735"/>
+        </circle></g>
+        <g class="c-flow-dot" data-edge="16"><circle r="2" fill="var(--database-stroke)" opacity="0.7">
+          <animateMotion dur="2.6s" repeatCount="indefinite" path="M 1160 735 L 1192 735 Q 1200 735 1200 727 L 1200 598 Q 1200 590 1208 590 L 1322 590 Q 1330 590 1330 582 L 1330 540"/>
+        </circle></g>
+        <g class="c-flow-dot" data-edge="17"><circle r="3" fill="var(--arrow-emphasis)" opacity="0.9">
+          <animateMotion dur="3s" repeatCount="indefinite" path="M 1420 495 L 1462 495 Q 1470 495 1470 503 L 1470 832 Q 1470 840 1462 840 L 863 840 Q 855 840 855 832 L 855 503 Q 855 495 847 495 L 820 495"/>
+        </circle></g>
+        <!-- Components -->
+<g class="c-flow-node" data-node="elder">
+<rect x="40" y="230" width="180" height="90" rx="6" class="c-mask"/>
+        <rect x="40" y="230" width="180" height="90" rx="6" class="c-external" stroke-width="1.5"/>
+        <text x="130" y="273" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">01 老人 · 陈阿姨</text>
+        <text x="130" y="289" class="t-muted" font-size="9" text-anchor="middle">说话、补充、改口、确认</text>
+        <text x="130" y="312" class="t-external" font-size="7" text-anchor="middle">手机即可独立使用</text>
+<text x="130" y="338" text-anchor="middle" class="c-flow-badge" data-badge="elder"></text>
+</g>
+
+<g class="c-flow-node" data-node="assistant">
+        <rect x="300" y="230" width="210" height="90" rx="6" class="c-mask"/>
+        <rect x="300" y="230" width="210" height="90" rx="6" class="c-frontend" stroke-width="1.5"/>
+        <text x="405" y="273" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">02 AI 助理 · 小安</text>
+        <text x="405" y="289" class="t-muted" font-size="9" text-anchor="middle">实时倾听、澄清、统一播报</text>
+        <text x="405" y="312" class="t-frontend" font-size="7" text-anchor="middle">交互角色 / 内含输出协调</text>
+<text x="405" y="338" text-anchor="middle" class="c-flow-badge" data-badge="assistant"></text>
+</g>
+
+<g class="c-flow-node" data-node="agent">
+        <rect x="610" y="230" width="210" height="90" rx="6" class="c-mask"/>
+        <rect x="610" y="230" width="210" height="90" rx="6" class="c-backend" stroke-width="1.5"/>
+        <text x="715" y="273" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">03 后台 Agent</text>
+        <text x="715" y="289" class="t-muted" font-size="9" text-anchor="middle">检索背景、整理候选、有限编排</text>
+        <text x="715" y="312" class="t-backend" font-size="7" text-anchor="middle">与对话并行 / 不绕过业务校验</text>
+<text x="715" y="338" text-anchor="middle" class="c-flow-badge" data-badge="agent"></text>
+</g>
+
+<g class="c-flow-node" data-node="family">
+        <rect x="1240" y="230" width="180" height="90" rx="6" class="c-mask"/>
+        <rect x="1240" y="230" width="180" height="90" rx="6" class="c-external" stroke-width="1.5"/>
+        <text x="1330" y="273" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">04 家属 · 小林</text>
+        <text x="1330" y="289" class="t-muted" font-size="9" text-anchor="middle">了解近况、留言、具体帮助</text>
+        <text x="1330" y="312" class="t-external" font-size="7" text-anchor="middle">不拥有妈妈私人记忆的读权限</text>
+<text x="1330" y="338" text-anchor="middle" class="c-flow-badge" data-badge="family"></text>
+</g>
+
+<g class="c-flow-node" data-node="events">
+        <rect x="610" y="80" width="210" height="70" rx="6" class="c-mask"/>
+        <rect x="610" y="80" width="210" height="70" rx="6" class="c-messagebus" stroke-width="1.5"/>
+        <text x="715" y="113" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">轮次与修订事件</text>
+        <text x="715" y="129" class="t-muted" font-size="9" text-anchor="middle">最终转写 + 来源 + 修订号</text>
+<text x="715" y="168" text-anchor="middle" class="c-flow-badge" data-badge="events"></text>
+</g>
+
+<g class="c-flow-node" data-node="gateway">
+        <rect x="610" y="450" width="210" height="90" rx="6" class="c-mask"/>
+        <rect x="610" y="450" width="210" height="90" rx="6" class="c-security" stroke-width="1.5"/>
+        <text x="715" y="493" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">确定性业务网关</text>
+        <text x="715" y="509" class="t-muted" font-size="9" text-anchor="middle">身份·权限·确认·版本·幂等</text>
+        <text x="715" y="532" class="t-security" font-size="7" text-anchor="middle">模型自填 confirmed 不构成授权</text>
+<text x="715" y="558" text-anchor="middle" class="c-flow-badge" data-badge="gateway"></text>
+</g>
+
+<g class="c-flow-node" data-node="memory">
+        <rect x="300" y="450" width="210" height="90" rx="6" class="c-mask"/>
+        <rect x="300" y="450" width="210" height="90" rx="6" class="c-database" stroke-width="1.5"/>
+        <text x="405" y="493" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">个人长期记忆</text>
+        <text x="405" y="509" class="t-muted" font-size="9" text-anchor="middle">来源、时间、状态、修订关系</text>
+        <text x="405" y="532" class="t-database" font-size="7" text-anchor="middle">仅陈阿姨 / 按用户隔离</text>
+<text x="405" y="558" text-anchor="middle" class="c-flow-badge" data-badge="memory"></text>
+</g>
+
+<g class="c-flow-node" data-node="reminder">
+        <rect x="610" y="690" width="210" height="90" rx="6" class="c-mask"/>
+        <rect x="610" y="690" width="210" height="90" rx="6" class="c-cloud" stroke-width="1.5"/>
+        <text x="715" y="733" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">个人提醒与调度</text>
+        <text x="715" y="749" class="t-muted" font-size="9" text-anchor="middle">周六 10:00 / 单次 / 自报反馈</text>
+        <text x="715" y="772" class="t-cloud" font-size="7" text-anchor="middle">确定性程序到时执行 / 非模型轮询</text>
+<text x="715" y="798" text-anchor="middle" class="c-flow-badge" data-badge="reminder"></text>
+</g>
+
+<g class="c-flow-node" data-node="projection">
+        <rect x="950" y="450" width="210" height="90" rx="6" class="c-mask"/>
+        <rect x="950" y="450" width="210" height="90" rx="6" class="c-database" stroke-width="1.5"/>
+        <text x="1055" y="493" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">授权近况与话题</text>
+        <text x="1055" y="509" class="t-muted" font-size="9" text-anchor="middle">鱼的近况、愿意分享的原话</text>
+        <text x="1055" y="532" class="t-database" font-size="7" text-anchor="middle">窄范围字段 / 不含整段聊天</text>
+<text x="1055" y="558" text-anchor="middle" class="c-flow-badge" data-badge="projection"></text>
+</g>
+
+<g class="c-flow-node" data-node="request">
+        <rect x="950" y="690" width="210" height="90" rx="6" class="c-mask"/>
+        <rect x="950" y="690" width="210" height="90" rx="6" class="c-messagebus" stroke-width="1.5"/>
+        <text x="1055" y="733" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">明确求助与本人留言</text>
+        <text x="1055" y="749" class="t-muted" font-size="9" text-anchor="middle">带鱼粮请求 + 小林主动留言</text>
+        <text x="1055" y="772" class="t-messagebus" font-size="7" text-anchor="middle">只有明确求助才有接手与办结</text>
+<text x="1055" y="798" text-anchor="middle" class="c-flow-badge" data-badge="request"></text>
+</g>
+
+<g class="c-flow-node" data-node="portal">
+        <rect x="1240" y="450" width="180" height="90" rx="6" class="c-mask"/>
+        <rect x="1240" y="450" width="180" height="90" rx="6" class="c-frontend" stroke-width="1.5"/>
+        <text x="1330" y="493" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">家属入口</text>
+        <text x="1330" y="509" class="t-muted" font-size="9" text-anchor="middle">近况 / 话题 / 需要你参与</text>
+        <text x="1330" y="532" class="t-frontend" font-size="7" text-anchor="middle">每次读取与输出复核授权</text>
+<text x="1330" y="558" text-anchor="middle" class="c-flow-badge" data-badge="portal"></text>
+</g>
+        <!-- Connection labels -->
+<g class="c-flow-label" data-edge="0"><rect x="245" y="251" width="30" height="14" rx="3" class="c-mask"/>
+        <text x="260" y="261" class="t-backend" font-size="8" text-anchor="middle">语音</text></g>
+        <g class="c-flow-label" data-edge="1"><rect x="209.4" y="347" width="101.2" height="14" rx="3" class="c-mask"/>
+        <text x="260" y="357" class="t-backend" font-size="8" text-anchor="middle">语音回答 / 追问确认</text></g>
+        <g class="c-flow-label" data-edge="2"><rect x="452.4" y="90" width="101.2" height="14" rx="3" class="c-mask"/>
+        <text x="503" y="100" class="t-messagebus" font-size="8" text-anchor="middle">轮次提交 / 改口事件</text></g>
+        <g class="c-flow-label" data-edge="3"><rect x="730.8" y="184" width="48.4" height="14" rx="3" class="c-mask"/>
+        <text x="755" y="194" class="t-messagebus" font-size="8" text-anchor="middle">异步触发</text></g>
+        <g class="c-flow-label" data-edge="4"><rect x="729.2" y="381" width="91.6" height="14" rx="3" class="c-mask"/>
+        <text x="775" y="391" class="t-security" font-size="8" text-anchor="middle">读记忆 / 提交候选</text></g>
+        <g class="c-flow-label" data-edge="5"><rect x="879" y="346" width="82" height="14" rx="3" class="c-mask"/>
+        <text x="920" y="356" class="t-muted" font-size="8" text-anchor="middle">来源 / 业务回执</text></g>
+        <g class="c-flow-label" data-edge="6"><rect x="530" y="470" width="58" height="14" rx="3" class="c-mask"/>
+        <text x="559" y="480" class="t-security" font-size="8" text-anchor="middle">校验后读写</text></g>
+        <g class="c-flow-label" data-edge="7"><rect x="488.2" y="389" width="91.6" height="14" rx="3" class="c-mask"/>
+        <text x="534" y="399" class="t-messagebus" font-size="8" text-anchor="middle">命中来源 / 新版本</text></g>
+        <g class="c-flow-label" data-edge="8"><rect x="531" y="250" width="58" height="14" rx="3" class="c-mask"/>
+        <text x="560" y="260" class="t-muted" font-size="8" text-anchor="middle">回复上下文</text></g>
+        <g class="c-flow-label" data-edge="9"><rect x="731.4" y="612" width="77.2" height="14" rx="3" class="c-mask"/>
+        <text x="770" y="622" class="t-security" font-size="8" text-anchor="middle">本人确认后保存</text></g>
+        <g class="c-flow-label" data-edge="10"><rect x="454.4" y="630" width="101.2" height="14" rx="3" class="c-mask"/>
+        <text x="505" y="640" class="t-messagebus" font-size="8" text-anchor="middle">到时结果 / 本次反馈</text></g>
+        <g class="c-flow-label" data-edge="11"><rect x="862.8" y="470" width="48.4" height="14" rx="3" class="c-mask"/>
+        <text x="887" y="480" class="t-security" font-size="8" text-anchor="middle">授权字段</text></g>
+        <g class="c-flow-label" data-edge="12"><rect x="1185" y="470" width="30" height="14" rx="3" class="c-mask"/>
+        <text x="1200" y="480" class="t-backend" font-size="8" text-anchor="middle">近况</text></g>
+        <g class="c-flow-label" data-edge="13"><rect x="1175.8" y="345" width="48.4" height="14" rx="3" class="c-mask"/>
+        <text x="1200" y="355" class="t-backend" font-size="8" text-anchor="middle">授权内容</text></g>
+        <g class="c-flow-label" data-edge="14"><rect x="1339" y="370" width="82" height="14" rx="3" class="c-mask"/>
+        <text x="1380" y="380" class="t-muted" font-size="8" text-anchor="middle">查看 / 本人操作</text></g>
+        <g class="c-flow-label" data-edge="15"><rect x="853" y="620" width="82" height="14" rx="3" class="c-mask"/>
+        <text x="894" y="630" class="t-security" font-size="8" text-anchor="middle">请求 / 留言入账</text></g>
+        <g class="c-flow-label" data-edge="16"><rect x="1207" y="600" width="106" height="14" rx="3" class="c-mask"/>
+        <text x="1260" y="610" class="t-messagebus" font-size="8" text-anchor="middle">待回应 / 接手 / 反馈</text></g>
+        <g class="c-flow-label" data-edge="17"><rect x="992.8" y="822" width="264.4" height="14" rx="3" class="c-mask"/>
+        <text x="1125" y="832" class="t-backend" font-size="8" text-anchor="middle">小林提交留言、接手、完成反馈 / 只记录有来源的本人操作</text></g>
+        <text x="40" y="875" class="t-muted" font-size="9">设计说明：箭头从来源流向接收者；语音交互与后台整理是逻辑分工，不强制两个模型。动画不代表真实调用、持久化或消息送达。</text>
+<!-- Legend -->
+<text x="40" y="901" class="t-primary" font-size="9" font-weight="600">组件类型</text>
+        <rect x="40" y="906" width="14" height="9" rx="2" class="c-mask"/>
+<rect x="40" y="906" width="14" height="9" rx="2" class="c-external" stroke-width="1"/>
+        <text x="60" y="914" class="t-muted" font-size="8">参与者</text>
+        <rect x="138" y="906" width="14" height="9" rx="2" class="c-mask"/>
+<rect x="138" y="906" width="14" height="9" rx="2" class="c-frontend" stroke-width="1"/>
+        <text x="158" y="914" class="t-muted" font-size="8">交互层</text>
+        <rect x="236" y="906" width="14" height="9" rx="2" class="c-mask"/>
+<rect x="236" y="906" width="14" height="9" rx="2" class="c-backend" stroke-width="1"/>
+        <text x="256" y="914" class="t-muted" font-size="8">Agent</text>
+        <rect x="329" y="906" width="14" height="9" rx="2" class="c-mask"/>
+<rect x="329" y="906" width="14" height="9" rx="2" class="c-messagebus" stroke-width="1"/>
+        <text x="349" y="914" class="t-muted" font-size="8">事件与请求</text>
+        <rect x="442" y="906" width="14" height="9" rx="2" class="c-mask"/>
+<rect x="442" y="906" width="14" height="9" rx="2" class="c-security" stroke-width="1"/>
+        <text x="462" y="914" class="t-muted" font-size="8">业务校验</text>
+        <rect x="540" y="906" width="14" height="9" rx="2" class="c-mask"/>
+<rect x="540" y="906" width="14" height="9" rx="2" class="c-database" stroke-width="1"/>
+        <text x="560" y="914" class="t-muted" font-size="8">记忆与投影</text>
+        <rect x="638" y="906" width="14" height="9" rx="2" class="c-mask"/>
+<rect x="638" y="906" width="14" height="9" rx="2" class="c-cloud" stroke-width="1"/>
+        <text x="658" y="914" class="t-muted" font-size="8">调度程序</text>
+        </svg>
+      </div>
+    </div>
+<section class="arch-reading" aria-label="当前信息如何处理"><article><h3>01 / 输入是什么</h3><p id="arch-input"></p></article><article><h3>02 / 中间怎样处理</h3><p id="arch-process"></p></article><article><h3>03 / 最终产生什么</h3><p id="arch-output"></p></article></section>
+    <aside class="arch-rule"><strong>不能越过的边界</strong><span id="arch-rule"></span></aside>
+    <p class="arch-links">右上角 Export 导出当前架构图，含当前章节高亮与图内短标题；可先选“架构总览”。GIF / WebM 只录连接流动，不录完整分章讲解，整段请录屏。<a href="conversation-architecture/README.md">源文件与验证说明</a></p>
+    <noscript><p class="arch-evidence">请启用 JavaScript 查看分章动画。下方图形仍是架构设计，不是实际运行证据。</p></noscript>
+
+    <!-- Info Cards -->
+    <div class="cards">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot cyan"></div>
+          <h3>AI 助理与 Agent 是职责，不强制两个模型</h3>
+        </div>
+        <ul>
+          <li>&bull; AI 助理负责听、说、澄清、打断与统一播报</li>
+          <li>&bull; 后台 Agent 根据事件检索背景、整理候选、有界调用工具</li>
+          <li>&bull; 二者可以并行；动画不证明真实并行或全双工已经实现</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot rose"></div>
+          <h3>三个出口，三种不同的条件</h3>
+        </div>
+        <ul>
+          <li>&bull; 个人记忆：保留设置、来源、用户隔离、修订与删除约束</li>
+          <li>&bull; 提醒：明确确认与当前版本，成功保存才播报</li>
+          <li>&bull; 家庭内容：指定接收人与最小范围，拒绝分享不外发</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot amber"></div>
+          <h3>家属看到生活，不只看到待办</h3>
+        </div>
+        <ul>
+          <li>&bull; 近况与可聊话题不要求接手或办结</li>
+          <li>&bull; 明确求助：等待回应 → 接手 → 家属反馈 → 老人确认</li>
+          <li>&bull; 留言明确发送者；自报不是客观核验，未回应不编造回复</li>
+        </ul>
+      </div>
+    </div>
+
+    </main>
+
+    <!-- Footer -->
+    <p class="footer">
+      Architecture diagram &bull; Built with Archify<span class="no-print"> &bull; Press <kbd>T</kbd> for theme and <kbd>E</kbd> for export</span>
+    </p>
+  </div>
+
+  <script>
+    /* ============================================================
+       Theme toggle �?persists to localStorage, respects system pref
+       ============================================================ */
+    var Archify = {};
+
+    Archify.theme = (function () {
+      var STORAGE_KEY = 'archify-theme';
+      var html = document.documentElement;
+      var btn = document.getElementById('btn-theme');
+      var icon = document.getElementById('theme-icon');
+      var label = document.getElementById('theme-label');
+
+      // localStorage can throw (blocked cookies, sandboxed iframes); the whole
+      // script element dies on an uncaught error, so guard every access.
+      function readStored() {
+        try { return localStorage.getItem(STORAGE_KEY); } catch (_) { return null; }
+      }
+      function writeStored(value) {
+        try { localStorage.setItem(STORAGE_KEY, value); } catch (_) {}
+      }
+      function urlOverride() {
+        // URL param wins (useful for deterministic screenshots / share links)
+        try {
+          var param = new URLSearchParams(window.location.search).get('theme');
+          if (param === 'light' || param === 'dark') return param;
+        } catch (_) {}
+        return null;
+      }
+
+      function resolveInitial() {
+        var fromUrl = urlOverride();
+        if (fromUrl) return fromUrl;
+        var saved = readStored();
+        if (saved === 'light' || saved === 'dark') return saved;
+        return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      }
+
+      function apply(theme) {
+        html.setAttribute('data-theme', theme);
+        icon.textContent = theme === 'dark' ? '\u263E' : '\u263C';
+        label.textContent = theme === 'dark' ? 'Dark' : 'Light';
+        btn.setAttribute('aria-pressed', theme === 'light' ? 'true' : 'false');
+      }
+
+      function toggle() {
+        var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        apply(next);
+        writeStored(next);
+      }
+
+      apply(resolveInitial());
+      btn.addEventListener('click', toggle);
+
+      // Follow live OS theme changes while the user has no explicit preference.
+      try {
+        var media = window.matchMedia('(prefers-color-scheme: light)');
+        var onChange = function (e) {
+          var saved = readStored();
+          if (urlOverride() || saved === 'light' || saved === 'dark') return;
+          apply(e.matches ? 'light' : 'dark');
+        };
+        if (media.addEventListener) media.addEventListener('change', onChange);
+        else if (media.addListener) media.addListener(onChange);
+      } catch (_) {}
+
+      return { toggle: toggle };
+    })();
+
+    /* ============================================================
+       Export �?PNG / JPEG / WebP / SVG (download) and Copy PNG (clipboard)
+
+       Raster exports are always rendered at 4x source resolution for
+       maximum sharpness. The trick: we set the serialized SVG's
+       `width`/`height` to viewBox * 4 so the browser rasterizes the
+       vectors at that resolution natively. drawImage then draws at
+       the image's natural size (no upscaling = no blur).
+
+       JPEG/WebP paint the current theme's background explicitly since
+       those formats have no alpha channel.
+       ============================================================ */
+    (function () {
+      var RASTER_SCALE = 4;
+
+      function diagramFilename() {
+        var title = (document.title || 'diagram')
+          .replace(/\s+Architecture(\s+Diagram)?$/i, '')
+          .replace(/\s+Diagram$/i, '')
+          .trim();
+        return title.replace(/[^a-z0-9_\-]+/gi, '-')
+                    .toLowerCase()
+                    .replace(/^-+|-+$/g, '') || 'diagram';
+      }
+
+      function currentBg() {
+        return getComputedStyle(document.body).backgroundColor || '#ffffff';
+      }
+
+      /**
+       * Serialize the main SVG into a standalone document.
+       *
+       * Two modes:
+       * - Default (opts.autoTheme=false) �?locks the serialized SVG to the
+       *   viewer's current theme. Used by the raster pipeline
+       *   (PNG/JPEG/WebP/clipboard) because canvas rasterization needs
+       *   deterministic colors; a raster cannot react to
+       *   prefers-color-scheme after encoding.
+       * - autoTheme=true �?emits BOTH dark and light variable sets plus a
+       *   `@media (prefers-color-scheme)` rule so the resulting SVG
+       *   self-themes when embedded in GitHub READMEs or other hosts that
+       *   expose a color scheme. Used for "Download SVG".
+       */
+      function serializeSvg(scale, opts) {
+        // scale: integer multiplier for intrinsic SVG pixel dimensions used by
+        // the raster path. Defaults to 1 (natural size) for SVG download.
+        scale = scale || 1;
+        opts = opts || {};
+        var autoTheme = opts.autoTheme === true;
+
+        var svg = document.querySelector('.diagram-container svg');
+        var clone = svg.cloneNode(true);
+
+        var vb = svg.viewBox.baseVal;
+        // Scale width/height so the browser rasterizes the vectors at target
+        // resolution directly. viewBox stays unchanged so coordinates don't
+        // shift. This is the key to sharp rasters �?do NOT scale later via
+        // canvas upscaling.
+        clone.setAttribute('width', vb.width * scale);
+        clone.setAttribute('height', vb.height * scale);
+        clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+        // Only the SVG-relevant rules: semantic classes, markers, and the
+        // theme variable blocks. Toolbar/cards/print CSS can never apply
+        // inside a standalone SVG and would only bloat the export.
+        var hostStyle = (function () {
+          var out = [];
+          Array.prototype.forEach.call(document.styleSheets, function (sheet) {
+            var rules;
+            try { rules = sheet.cssRules; } catch (_) { return; } // cross-origin
+            if (!rules) return;
+            Array.prototype.forEach.call(rules, function (rule) {
+              if (rule.type !== 1) return; // plain style rules only
+              var sel = rule.selectorText || '';
+              if (/(^|,)\s*(svg|:root|\[data-theme|\.c-|\.t-|\.a-|\.m-)/.test(sel)) {
+                out.push(rule.cssText);
+              }
+            });
+          });
+          return out.join('\n');
+        })();
+
+        // Derive the variable list from the stylesheet so newly added theme
+        // variables can never be missed by the export pipeline again
+        // (--lane-fill/--lane-stroke once were).
+        var varNames = (function () {
+          var seen = {};
+          var names = [];
+          (hostStyle.match(/--[a-zA-Z0-9-]+(?=\s*:)/g) || []).forEach(function (n) {
+            if (!seen[n]) { seen[n] = true; names.push(n); }
+          });
+          return names;
+        })();
+
+        // Resolve the full variable set for a given data-theme via an
+        // off-DOM probe, independent of what the viewer is currently set to.
+        function resolveVars(themeAttr) {
+          var probe = document.createElement('div');
+          probe.setAttribute('data-theme', themeAttr);
+          probe.style.cssText = 'position:absolute;width:0;height:0;visibility:hidden;';
+          document.body.appendChild(probe);
+          try {
+            var c = getComputedStyle(probe);
+            return varNames.map(function (n) {
+              return n + ': ' + c.getPropertyValue(n).trim() + ';';
+            }).join(' ');
+          } finally {
+            document.body.removeChild(probe);
+          }
+        }
+
+        // Prepend a local()-only @font-face block for each weight so that the
+        // sandboxed image-rendering context used during PNG/JPEG/WebP export
+        // can find JetBrains Mono if the user has it installed locally, and
+        // falls through cleanly to the monospace stack otherwise. The usual
+        // Google-Fonts <link> in the host document is unreachable from the
+        // serialized SVG, so url()-sourced faces would just hang.
+        var fontFallback = [400, 500, 600, 700].map(function (w) {
+          return "@font-face { font-family: 'JetBrains Mono'; font-weight: " + w +
+                 "; src: local('JetBrains Mono'), local('JetBrainsMono-Regular'); }";
+        }).join('\n');
+
+        var style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+        var bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        bgRect.setAttribute('width', '100%');
+        bgRect.setAttribute('height', '100%');
+
+        if (autoTheme) {
+          // Dual-theme SVG. Dark is the default (so hosts without
+          // prefers-color-scheme still render), light swaps in via media
+          // query, and svg[data-theme="..."] still lets downstream
+          // consumers force a specific theme.
+          var darkVars = resolveVars('dark');
+          var lightVars = resolveVars('light');
+
+          style.textContent =
+            fontFallback + "\n" +
+            "svg { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', 'Noto Sans Mono CJK SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', monospace; }\n" +
+            hostStyle + "\n" +
+            ":root, svg { " + darkVars + " }\n" +
+            "@media (prefers-color-scheme: light) { :root, svg { " + lightVars + " } }\n" +
+            "svg[data-theme=\"light\"] { " + lightVars + " }\n" +
+            "svg[data-theme=\"dark\"] { " + darkVars + " }\n" +
+            "rect.c-bg-rect { fill: var(--bg); }\n";
+
+          // Don't lock the serialized SVG to the viewer's current theme.
+          clone.removeAttribute('data-theme');
+          // Background follows the CSS variable, not a fixed color, so it
+          // swaps with the media query.
+          bgRect.setAttribute('class', 'c-bg-rect');
+        } else {
+          // Raster path: lock to the viewer's current theme.
+          var theme = document.documentElement.getAttribute('data-theme') || 'dark';
+          var themeHost = document.querySelector('[data-theme="' + theme + '"]') || document.documentElement;
+          var computed = getComputedStyle(themeHost);
+          var vars = varNames.map(function (n) {
+            return n + ': ' + computed.getPropertyValue(n).trim() + ';';
+          }).join(' ');
+
+          // IMPORTANT: inject the resolved variables AFTER hostStyle,
+          // otherwise hostStyle's ":root, [data-theme=\"dark\"] { ... }" rule
+          // overrides our chosen theme via later-in-cascade equal-specificity.
+          // Keep this order.
+          style.textContent =
+            fontFallback + "\n" +
+            "svg { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', 'Noto Sans Mono CJK SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', monospace; }\n" +
+            hostStyle + "\n" +
+            ":root, svg { " + vars + " }\n";
+
+          bgRect.setAttribute('fill', computed.getPropertyValue('--bg').trim() || '#ffffff');
+        }
+
+        clone.insertBefore(style, clone.firstChild);
+        clone.insertBefore(bgRect, style.nextSibling);
+
+        return {
+          svgString: new XMLSerializer().serializeToString(clone),
+          width: vb.width * scale,
+          height: vb.height * scale
+        };
+      }
+      /**
+       * Serialize SVG with manually computed animation state at elapsedSec.
+       * CSS animations and SMIL animations do NOT run when an SVG is loaded
+       * as an <img> (browser security restriction). So we must manually
+       * calculate the animation state and apply it as inline attributes.
+       *
+       * Animations handled:
+       * 1. stroke-dashoffset flow (flowDash keyframe) for .a-emphasis/.a-default/.a-dashed/.a-security
+       * 2. opacity pulse (flowPulse keyframe) for .a-emphasis
+       * 3. animateMotion dots - calculate position along path at elapsed time
+       */
+      function serializeSvgAnimated(scale, elapsedSec) {
+        scale = scale || 1;
+        var svg = document.querySelector('.diagram-container svg');
+        var clone = svg.cloneNode(true);
+
+        var vb = svg.viewBox.baseVal;
+        clone.setAttribute('width', vb.width * scale);
+        clone.setAttribute('height', vb.height * scale);
+        clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+        // --- Manually apply animation state to cloned elements ---
+
+        // Animation parameters per class:
+        // flowDash: stroke-dashoffset goes from 0 to -20, linear, infinite
+        // .a-emphasis: duration 0.8s, also flowPulse opacity 0.6-1.0 over 2s
+        // .a-default: duration 1.2s
+        // .a-dashed: duration 1.0s
+        // .a-security: duration 1.0s
+        var dashRange = 20; // stroke-dashoffset goes from 0 to -20
+
+        var animClasses = [
+          { sel: '.a-emphasis', dur: 0.8, pulse: true, pulseDur: 2.0 },
+          { sel: '.a-default', dur: 1.2, pulse: false },
+          { sel: '.a-dashed', dur: 1.0, pulse: false },
+          { sel: '.a-security', dur: 1.0, pulse: false }
+        ];
+
+        animClasses.forEach(function(cfg) {
+          var elems = clone.querySelectorAll(cfg.sel);
+          for (var i = 0; i < elems.length; i++) {
+            // Calculate stroke-dashoffset
+            var phase = (elapsedSec % cfg.dur) / cfg.dur; // 0 to 1
+            var dashOffset = -dashRange * phase;
+            elems[i].setAttribute('style', elems[i].getAttribute('style') || '');
+            elems[i].style.strokeDashoffset = dashOffset;
+
+            // Remove animation property to prevent any interference
+            elems[i].style.animation = 'none';
+
+            // Calculate opacity for pulse (flowPulse: 0% and 100% = 0.6, 50% = 1.0)
+            if (cfg.pulse) {
+              var pulsePhase = (elapsedSec % cfg.pulseDur) / cfg.pulseDur; // 0 to 1
+              // sin wave: 0.6 + 0.4 * (0.5 - 0.5 * cos(2*PI*phase))
+              // At phase 0: 0.6, at phase 0.5: 1.0, at phase 1: 0.6
+              var opacity = 0.6 + 0.4 * (0.5 - 0.5 * Math.cos(2 * Math.PI * pulsePhase));
+              elems[i].style.opacity = opacity;
+            }
+          }
+        });
+
+        // Handle animateMotion dots - calculate position along path
+        var motionDots = clone.querySelectorAll('animateMotion');
+        for (var j = 0; j < motionDots.length; j++) {
+          var motion = motionDots[j];
+          var circle = motion.parentElement; // the <circle> that contains the <animateMotion>
+          var pathAttr = motion.getAttribute('path');
+          var durAttr = parseFloat(motion.getAttribute('dur'));
+
+          if (pathAttr && durAttr) {
+            // Create a path element to use getPointAtLength
+            var tempPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            tempPath.setAttribute('d', pathAttr);
+            var pathLen = tempPath.getTotalLength();
+
+            // Calculate position at elapsed time
+            var motionPhase = (elapsedSec % durAttr) / durAttr;
+            var pointAtLen = pathLen * motionPhase;
+            var point = tempPath.getPointAtLength(pointAtLen);
+
+            // Set circle position
+            circle.setAttribute('cx', point.x);
+            circle.setAttribute('cy', point.y);
+
+            // Remove the animateMotion element since we've set static position
+            circle.removeChild(motion);
+          }
+        }
+
+        // --- Collect CSS rules (stripping animation-related ones) ---
+        var hostStyle = (function () {
+          var out = [];
+          Array.prototype.forEach.call(document.styleSheets, function (sheet) {
+            var rules;
+            try { rules = sheet.cssRules; } catch (_) { return; }
+            if (!rules) return;
+            Array.prototype.forEach.call(rules, function (rule) {
+              if (rule.type !== 1) return;
+              var sel = rule.selectorText || '';
+              if (/(^|,)\s*(svg|:root|\[data-theme|\.c-|\.t-|\.a-|\.m-)/.test(sel)) {
+                var cssText = rule.cssText;
+                // Strip animation-related properties from CSS rules
+                // (we've already applied the animation state manually)
+                cssText = cssText.replace(/animation\s*:[^;}]*[;}]/g, 'animation: none;');
+                cssText = cssText.replace(/animation-delay\s*:[^;}]*[;}]/g, '');
+                out.push(cssText);
+              }
+            });
+          });
+          return out.join('\n');
+        })();
+
+        var varNames = (function () {
+          var seen = {};
+          var names = [];
+          (hostStyle.match(/--[a-zA-Z0-9-]+(?=\s*:)/g) || []).forEach(function (n) {
+            if (!seen[n]) { seen[n] = true; names.push(n); }
+          });
+          return names;
+        })();
+
+        var theme = document.documentElement.getAttribute('data-theme') || 'dark';
+        var themeHost = document.querySelector('[data-theme="' + theme + '"]') || document.documentElement;
+        var computed = getComputedStyle(themeHost);
+        var vars = varNames.map(function (n) {
+          return n + ': ' + computed.getPropertyValue(n).trim() + ';';
+        }).join(' ');
+
+        var fontFallback = [400, 500, 600, 700].map(function (w) {
+          return "@font-face { font-family: 'JetBrains Mono'; font-weight: " + w +
+                 "; src: local('JetBrains Mono'), local('JetBrainsMono-Regular'); }";
+        }).join('\n');
+
+        var style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+        var bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        bgRect.setAttribute('width', '100%');
+        bgRect.setAttribute('height', '100%');
+
+        style.textContent =
+          fontFallback + '\n' +
+          "svg { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', 'Noto Sans Mono CJK SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', monospace; }\n" +
+          hostStyle + '\n' +
+          ':root, svg { ' + vars + ' }\n' +
+          '/* All animations disabled - state applied manually for frame capture */\n' +
+          '.a-emphasis, .a-default, .a-dashed, .a-security { animation: none !important; }\n';
+
+        bgRect.setAttribute('fill', computed.getPropertyValue('--bg').trim() || '#ffffff');
+
+        clone.insertBefore(style, clone.firstChild);
+        clone.insertBefore(bgRect, style.nextSibling);
+
+        return {
+          svgString: new XMLSerializer().serializeToString(clone),
+          width: vb.width * scale,
+          height: vb.height * scale
+        };
+      }
+
+
+      function download(blob, filename) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      }
+
+      // Conservative upper bound on total canvas pixels. Older Safari on iOS
+      // silently produces a blank canvas above ~16 Mpx; Chrome / Firefox /
+      // desktop Safari are far higher but start failing on memory-constrained
+      // devices. We pick the largest integer scale in {4,3,2,1} whose target
+      // pixel count fits under this cap.
+      var MAX_CANVAS_PIXELS = 16 * 1024 * 1024;
+
+      function pickSafeScale(vbW, vbH) {
+        for (var s = RASTER_SCALE; s >= 1; s--) {
+          if (vbW * s * vbH * s <= MAX_CANVAS_PIXELS) return s;
+        }
+        return 1;
+      }
+
+      function rasterize(format) {
+        // Serialize at a safe scale (RASTER_SCALE=4 by default, reduced if the
+        // resulting canvas would exceed MAX_CANVAS_PIXELS). The SVG itself is
+        // rasterized at target resolution natively; drawImage draws at natural
+        // size �?no upsampling blur.
+        var svg = document.querySelector('.diagram-container svg');
+        var vb = svg.viewBox.baseVal;
+        var scale = pickSafeScale(vb.width, vb.height);
+        var data = serializeSvg(scale);
+        var svgBlob = new Blob([data.svgString], { type: 'image/svg+xml;charset=utf-8' });
+        var svgUrl = URL.createObjectURL(svgBlob);
+
+        return new Promise(function (resolve, reject) {
+          var img = new Image();
+          img.onload = function () {
+            var canvas = document.createElement('canvas');
+            canvas.width = data.width;
+            canvas.height = data.height;
+            var ctx = canvas.getContext('2d');
+            if (format === 'jpeg') {
+              ctx.fillStyle = currentBg();
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            // Draw at natural size �?SVG was already rasterized at target res.
+            ctx.drawImage(img, 0, 0);
+            URL.revokeObjectURL(svgUrl);
+            var mime = format === 'jpeg' ? 'image/jpeg' :
+                       format === 'webp' ? 'image/webp' : 'image/png';
+            var quality = format === 'png' ? undefined : 0.95;
+            canvas.toBlob(function (blob) {
+              if (!blob) reject(new Error('toBlob returned null for ' + format));
+              else resolve(blob);
+            }, mime, quality);
+          };
+          img.onerror = function (e) {
+            URL.revokeObjectURL(svgUrl);
+            reject(e);
+          };
+          img.src = svgUrl;
+        });
+      }
+
+      var menu = document.getElementById('export-menu');
+      var btn = document.getElementById('btn-export');
+      var items = function () {
+        return Array.prototype.slice.call(menu.querySelectorAll('button[role="menuitem"]'));
+      };
+
+      // ---- Clipboard support ----------------------------------------------
+      function canCopyImage() {
+        return typeof ClipboardItem !== 'undefined' &&
+               navigator.clipboard &&
+               typeof navigator.clipboard.write === 'function';
+      }
+
+      // ---- Raster format detection ----------------------------------------
+      // canvas.toBlob('image/webp') silently returns a PNG on browsers without
+      // WebP encoding (older Safari), so detect explicitly.
+      function supports(format) {
+        if (format === 'svg' || format === 'png') return true;
+        var mime = format === 'jpeg' ? 'image/jpeg' : 'image/webp';
+        try {
+          var c = document.createElement('canvas');
+          c.width = c.height = 2;
+          return c.toDataURL(mime).indexOf('data:' + mime) === 0;
+        } catch (_) { return false; }
+      }
+
+      // Gray out unsupported items.
+      items().forEach(function (it) {
+        if (it.dataset.format && !supports(it.dataset.format)) {
+          it.disabled = true;
+          it.title = 'Not supported by this browser';
+          it.style.opacity = '0.5';
+        }
+        if (it.dataset.action === 'copy' && !canCopyImage()) {
+          it.disabled = true;
+          it.title = 'Clipboard image write not supported by this browser';
+          it.style.opacity = '0.5';
+        }
+      });
+
+      // ---- Toast ----------------------------------------------------------
+      // A live region only announces CHANGES to an existing node, so the toast
+      // element is created once up front and updated in place.
+      var toastEl = document.createElement('div');
+      toastEl.className = 'archify-toast';
+      toastEl.setAttribute('role', 'status');
+      document.body.appendChild(toastEl);
+      var toastTimer = null;
+
+      function toast(msg) {
+        toastEl.textContent = '';
+        requestAnimationFrame(function () {
+          toastEl.textContent = msg;
+          toastEl.classList.add('show');
+        });
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 1500);
+      }
+
+      function open(focusLast) {
+        menu.classList.add('open');
+        btn.setAttribute('aria-expanded', 'true');
+        var available = items().filter(function (i) { return !i.disabled; });
+        var target = focusLast ? available[available.length - 1] : available[0];
+        if (target) target.focus();
+      }
+      function close(focusTrigger) {
+        menu.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
+        if (focusTrigger) btn.focus();
+      }
+      function isOpen() { return menu.classList.contains('open'); }
+
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (isOpen()) close(false);
+        else open();
+      });
+      // APG menu-button pattern: ArrowDown/ArrowUp on the trigger opens the menu.
+      btn.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (!isOpen()) open(e.key === 'ArrowUp');
+        }
+      });
+      document.addEventListener('click', function (e) {
+        if (!menu.contains(e.target) && e.target !== btn) close(false);
+      });
+
+      // Keyboard navigation inside the menu.
+      //   Menu items: Up/Down, Home/End.
+      //   Esc closes + returns focus to trigger; Tab closes.
+      menu.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { e.preventDefault(); close(true); return; }
+        if (e.key === 'Tab')    { close(false); return; }
+
+        var available = items().filter(function (i) { return !i.disabled; });
+        var current = available.indexOf(document.activeElement);
+        switch (e.key) {
+          case 'ArrowDown':
+            e.preventDefault();
+            if (available.length) available[(current + 1 + available.length) % available.length].focus();
+            break;
+          case 'ArrowUp':
+            e.preventDefault();
+            if (available.length) available[(current - 1 + available.length) % available.length].focus();
+            break;
+          case 'Home':
+            e.preventDefault();
+            if (available[0]) available[0].focus();
+            break;
+          case 'End':
+            e.preventDefault();
+            if (available.length) available[available.length - 1].focus();
+            break;
+        }
+      });
+
+      function runExport(format) {
+        var base = diagramFilename();
+        close(true);
+        
+        // Handle GIF export
+        if (format === 'gif') {
+          return exportGif(base).catch(function (err) {
+            console.error(err);
+            alert('GIF export failed: ' + (err && err.message ? err.message : 'unknown'));
+          });
+        }
+        
+        // Handle WebM video export
+        if (format === 'webm') {
+          return exportWebM(base).catch(function (err) {
+            console.error(err);
+            alert('WebM export failed: ' + (err && err.message ? err.message : 'unknown'));
+          });
+        }
+        
+        return (format === 'svg'
+          ? Promise.resolve(serializeSvg(1, { autoTheme: true })).then(function (d) {
+              download(new Blob([d.svgString], { type: 'image/svg+xml;charset=utf-8' }), base + '.svg');
+            })
+          : rasterize(format).then(function (blob) {
+              download(blob, base + '.' + format);
+            })
+        ).catch(function (err) {
+          console.error(err);
+          alert('Export failed: ' + (err && err.message ? err.message : format));
+        });
+      }
+
+      /**
+       * Export animated GIF using custom encoder (no web workers)
+       * Works with file:// protocol and local HTML files
+       */
+      function exportGif(base) {
+        return showGifSettingsDialog('GIF').then(function(settings) {
+          if (!settings) return; // user cancelled
+
+          return new Promise(function (resolve, reject) {
+            var svg = document.querySelector('.diagram-container svg');
+            if (!svg) {
+              reject(new Error('No SVG found'));
+              return;
+            }
+
+            toast('Recording GIF frames...');
+
+            var vb = svg.viewBox.baseVal;
+            var scale = settings.scale;
+            var width = vb.width * scale;
+            var height = vb.height * scale;
+            var fps = settings.fps;
+            var duration = settings.duration;
+            var totalFrames = Math.round(fps * duration);
+            var frameDelay = 1000 / fps;
+
+          // Create canvas for frame capture
+          var canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          var ctx = canvas.getContext('2d');
+
+          // Create gif.js encoder with inline worker
+          var gif = new GIF({
+            workers: 2,
+            quality: 10,
+            width: width,
+            height: height,
+            workerScript: gifWorkerUrl,
+            repeat: 0
+          });
+
+          gif.on('finished', function(blob) {
+            console.log('GIF encoding finished, blob size:', blob.size);
+            download(blob, base + '.gif');
+            toast('GIF exported successfully!');
+            resolve();
+          });
+
+          gif.on('progress', function(p) {
+            toast('Encoding GIF... ' + Math.round(p * 100) + '%');
+          });
+
+          var startTime = performance.now();
+          var currentFrame = 0;
+
+          function captureFrame() {
+            if (currentFrame >= totalFrames) {
+              // All frames captured, render GIF
+              toast('Encoding GIF...');
+              gif.render();
+              return;
+            }
+
+            var elapsed = (performance.now() - startTime) / 1000;
+
+            // Re-serialize SVG with animation-delay to match elapsed time
+            var frameData = serializeSvgAnimated(scale, elapsed);
+            var frameBlob = new Blob([frameData.svgString], {type: 'image/svg+xml;charset=utf-8'});
+            var frameUrl = URL.createObjectURL(frameBlob);
+
+            var frameImg = new Image();
+            frameImg.onload = function() {
+              ctx.clearRect(0, 0, width, height);
+              ctx.drawImage(frameImg, 0, 0);
+              URL.revokeObjectURL(frameUrl);
+
+              // Add frame to gif.js
+              gif.addFrame(ctx, {delay: frameDelay, copy: true});
+              currentFrame++;
+
+              if (currentFrame % 5 === 0) {
+                toast('Recording frames... ' + Math.round(currentFrame / totalFrames * 100) + '%');
+              }
+
+              // Use setTimeout for real-time spacing so CSS animations advance
+              setTimeout(captureFrame, frameDelay);
+            };
+            frameImg.onerror = function() {
+              URL.revokeObjectURL(frameUrl);
+              reject(new Error('Failed to load frame image'));
+            };
+            frameImg.src = frameUrl;
+          }
+
+          // Start capture
+          captureFrame();
+          });
+        });
+      }
+
+
+
+      /**
+       * Export WebM video using MediaRecorder
+       * Captures the animated SVG as a video
+       */
+      function exportWebM(base) {
+        return showGifSettingsDialog('WebM').then(function(settings) {
+          if (!settings) return; // user cancelled
+
+          return new Promise(function (resolve, reject) {
+          var svg = document.querySelector('.diagram-container svg');
+          if (!svg) {
+            reject(new Error('No SVG found'));
+            return;
+          }
+
+          toast('Recording WebM video...');
+
+          var vb = svg.viewBox.baseVal;
+          var scale = settings.scale;
+          var width = vb.width * scale;
+          var height = vb.height * scale;
+          var fps = settings.fps;
+          var duration = settings.duration;
+
+          // Create canvas for video capture
+          var canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          var ctx = canvas.getContext('2d');
+
+          // Get canvas stream
+          var stream = canvas.captureStream(fps);
+          var recorder = new MediaRecorder(stream, {
+            mimeType: 'video/webm;codecs=vp9',
+            videoBitsPerSecond: 5000000 // 5 Mbps
+          });
+
+          var chunks = [];
+          recorder.ondataavailable = function (e) {
+            if (e.data.size > 0) chunks.push(e.data);
+          };
+
+          recorder.onstop = function () {
+            var blob = new Blob(chunks, { type: 'video/webm' });
+            download(blob, base + '.webm');
+            toast('WebM exported successfully!');
+            resolve();
+          };
+
+          recorder.onerror = function (e) {
+            reject(new Error('MediaRecorder error: ' + e.error));
+          };
+
+          // Start recording
+          recorder.start();
+
+          // Serialize SVG for rendering
+          var data = serializeSvg(scale);
+          var svgBlob = new Blob([data.svgString], { type: 'image/svg+xml;charset=utf-8' });
+          var svgUrl = URL.createObjectURL(svgBlob);
+
+          var img = new Image();
+          img.onload = function () {
+            var startTime = performance.now();
+            var frameCount = 0;
+
+            function drawFrame() {
+              var elapsed = (performance.now() - startTime) / 1000;
+              
+              if (elapsed >= duration) {
+                // Stop recording
+                recorder.stop();
+                URL.revokeObjectURL(svgUrl);
+                return;
+              }
+
+              // Clear canvas and draw SVG
+              ctx.clearRect(0, 0, width, height);
+              
+              // Re-serialize to capture animation state
+              var frameData = serializeSvgAnimated(scale, elapsed);
+              var frameBlob = new Blob([frameData.svgString], { type: 'image/svg+xml;charset=utf-8' });
+              var frameUrl = URL.createObjectURL(frameBlob);
+              
+              var frameImg = new Image();
+              frameImg.onload = function () {
+                ctx.drawImage(frameImg, 0, 0);
+                URL.revokeObjectURL(frameUrl);
+                frameCount++;
+                
+                // Update progress
+                if (frameCount % 30 === 0) {
+                  toast('Recording video... ' + Math.round(elapsed / duration * 100) + '%');
+                }
+                
+                // Draw next frame
+                requestAnimationFrame(drawFrame);
+              };
+              frameImg.src = frameUrl;
+            }
+
+            // Start drawing
+            drawFrame();
+          };
+
+          img.onerror = function () {
+            URL.revokeObjectURL(svgUrl);
+            recorder.stop();
+            reject(new Error('Failed to load SVG image'));
+          };
+          img.src = svgUrl;
+          });
+        });
+      }
+
+      function runCopy() {
+        close(true);
+        if (!canCopyImage()) {
+          alert('Clipboard image write not supported in this browser.');
+          return;
+        }
+        // WebKit requires ClipboardItem to be constructed synchronously inside
+        // the user gesture �?pass the pending Promise<Blob> as the item value.
+        // Browsers that reject promise values throw synchronously; fall back
+        // to awaiting the blob first (works in Chromium/Firefox).
+        var blobPromise = rasterize('png');
+        var writePromise;
+        try {
+          writePromise = navigator.clipboard.write([new ClipboardItem({ 'image/png': blobPromise })]);
+        } catch (_) {
+          writePromise = blobPromise.then(function (blob) {
+            return navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+          });
+        }
+        return writePromise.then(function () {
+          toast('Copied PNG to clipboard');
+        }).catch(function (err) {
+          console.error(err);
+          alert('Copy failed: ' + (err && err.message ? err.message : 'unknown'));
+        });
+      }
+
+      menu.addEventListener('click', function (e) {
+        var copyBtn = e.target.closest('button[data-action="copy"]');
+        if (copyBtn && !copyBtn.disabled) { runCopy(); return; }
+
+        var formatBtn = e.target.closest('button[data-format]');
+        if (formatBtn && !formatBtn.disabled) { runExport(formatBtn.dataset.format); }
+      });
+
+      Archify.exportMenu = { open: open, close: close, isOpen: isOpen, run: runExport };
+
+      // Auto-open on page load for demo/screenshot purposes: ?openExport=1
+      // Wait for fonts (so the menu doesn't flash before typography lands)
+      // and paint before opening. Fallback timeout for browsers without the
+      // Font Loading API.
+      try {
+        if (new URLSearchParams(window.location.search).get('openExport') === '1') {
+          var openWhenReady = function () {
+            requestAnimationFrame(function () { requestAnimationFrame(open); });
+          };
+          if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(openWhenReady);
+          } else {
+            setTimeout(openWhenReady, 200);
+          }
+        }
+      } catch (_) {}
+    })();
+
+    /* ============================================================
+       Global keyboard shortcuts
+         T -> toggle theme
+         E -> open export menu
+       Ignored when focus is inside an input/textarea/contenteditable.
+       ============================================================ */
+    document.addEventListener('keydown', function (e) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      var t = e.target;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        Archify.theme.toggle();
+      } else if (e.key === 'e' || e.key === 'E') {
+        e.preventDefault();
+        if (!Archify.exportMenu.isOpen()) Archify.exportMenu.open();
+      }
+    });
+
+    // ---- GIF/WebM export settings dialog ----
+    var gifDialog = document.getElementById('archify-gif-dialog');
+    var gifDialogFormat = document.getElementById('gif-format');
+    var gifDialogScale = document.getElementById('gif-scale');
+    var gifDialogFps = document.getElementById('gif-fps');
+    var gifDialogDuration = document.getElementById('gif-duration');
+    var gifDialogInfo = document.getElementById('gif-info');
+    var gifDialogResolve = null;
+
+    function updateGifInfo() {
+      var fps = parseInt(gifDialogFps.value);
+      var dur = parseFloat(gifDialogDuration.value);
+      var frames = Math.round(fps * dur);
+      gifDialogInfo.textContent = frames + ' frames · ' + fps + ' fps · ' + dur + 's';
+    }
+    [gifDialogFps, gifDialogDuration].forEach(function(el) {
+      el.addEventListener('change', updateGifInfo);
+      el.addEventListener('input', updateGifInfo);
+    });
+
+    document.getElementById('gif-cancel').addEventListener('click', function() {
+      gifDialog.classList.remove('open');
+      if (gifDialogResolve) {
+        gifDialogResolve(null);
+        gifDialogResolve = null;
+      }
+    });
+
+    document.getElementById('gif-confirm').addEventListener('click', function() {
+      var settings = {
+        scale: parseInt(gifDialogScale.value),
+        fps: parseInt(gifDialogFps.value),
+        duration: parseFloat(gifDialogDuration.value)
+      };
+      gifDialog.classList.remove('open');
+      if (gifDialogResolve) {
+        gifDialogResolve(settings);
+        gifDialogResolve = null;
+      }
+    });
+
+    function showGifSettingsDialog(format) {
+      gifDialogFormat.textContent = format.toUpperCase();
+      updateGifInfo();
+      gifDialog.classList.add('open');
+      return new Promise(function(resolve) {
+        gifDialogResolve = resolve;
+      });
+    }
+  </script>
+<script id="arch-presentation-script">
+const ARCH_STORY = {"chapters":[{"id":"listen","title":"先接住老人的话","label":"01 语音与并行","quoteId":"A01","summary":"AI 助理负责自然倾听和回应；最终轮次同时流向后台 Agent，不把聊天变成串行填表。","input":"陈阿姨讲述鱼的近况。手机持续语音交互是设计目标。","process":"语音侧识别轮次、修订与打断；已提交轮次携带来源，异步唤起后台整理。","output":"先说“我听到了”，但不提前宣布记忆或提醒已经保存。","rule":"AI 助理与后台 Agent 是逻辑职责，未强制使用两个模型。动画不证明全双工或并行处理已实现。","edges":["voiceIn","voiceOut","turnEvent","trigger"],"nodes":["elder","assistant","events","agent"],"badges":{"assistant":"倾听 / 回应","agent":"收到最终轮次"},"quote":"小安，今天鱼又活泼起来了。前两天我还担心呢。","quoteSource":"S-A/A01:rev1","shortQuote":"小安，今天鱼又活泼起来了。前两天我还担心呢。"},{"id":"recall","title":"相关记忆先经过权限校验","label":"02 记忆获取","quoteId":"B01","summary":"Agent 不会天然“记得一切”。它先用陈阿姨的身份和本轮目的，经网关检索相关个人记忆。","input":"“上回鱼缸的事” + 当前用户 elder-chen + 本轮查询目的。","process":"网关校验读权限；检索 M01 养鱼背景、M04 鱼的近况，并保留原始来源与版本。","output":"仅相关上下文返回 Agent，再交给 AI 助理组织回应；新会话不加载整份旧聊天。","rule":"全局记忆 = 同一老人跨会话的个人记忆，不是所有用户或全家共享的档案。提醒另读专门账本。","edges":["command","memoryIO","memoryResult","receipt","replyContext","voiceOut"],"nodes":["elder","assistant","agent","gateway","memory"],"badges":{"memory":"M01 + M04 / 来源","gateway":"先检查读权限"},"quote":"上回鱼缸的事你还记得吗？今天几点提醒我？","quoteSource":"S-B/B01:rev1","shortQuote":"上回鱼缸的事你还记得吗？今天几点提醒我？"},{"id":"remember","title":"新增与修订，不是覆盖式摘要","label":"03 记忆新增","quoteId":"B03","summary":"后台从最终原话提取记忆候选；保留设置、来源与版本检查通过后，才新增或修订个人记忆。","input":"鱼今天更活泼 → 新近况 M04；小颗粒改薄片 → M03 修订候选。","process":"来源绑定会话／轮次／转写修订；网关比较当前版本，提交 M03:v2，旧 v1 标记已替代。","output":"个人账本保存带来源的新版本，成功回执经过 Agent 和输出协调再告诉陈阿姨。","rule":"临时转写只能准备草稿；改口使旧候选失效。本人允许记住，不等于允许分享给小林。","edges":["turnEvent","trigger","command","memoryIO","memoryResult","receipt","replyContext","voiceOut"],"nodes":["elder","assistant","events","agent","gateway","memory"],"badges":{"memory":"M04 新增 / M03 v1 → v2","gateway":"来源 / 版本 / 保留设置"},"quote":"鱼粮现在换成薄片的了，不是原来的小颗粒。帮我把这个记清楚。","quoteSource":"S-B/B03:rev1","shortQuote":"鱼粮现在换成薄片的了，不是原来的小颗粒。帮我把这个记清楚。"},{"id":"remind","title":"确认安排，保存成功才生效","label":"04 个人提醒","quoteId":"A07","summary":"“九点改十点，只这一次”先更新候选，再核对日期、时间与单次规则；本人确认之后才创建计划。","input":"C-R1 九点草稿失效；C-R2 为周六 10:00，Asia/Shanghai，单次。","process":"确认凭据绑定 A09 与 C-R2:v2；网关检查版本、幂等并保存计划，未来由确定性调度程序触发。","output":"提交成功才说“提醒已保存”。到时结果／本人反馈仍沿网关 → Agent → AI 助理流转。","rule":"本人确认 ≠ 已保存 ≠ 通知送达 ≠ 客观完成；一次安排不自动写成永久习惯。","edges":["voiceIn","turnEvent","trigger","command","reminderSave","reminderResult","receipt","replyContext","voiceOut"],"nodes":["elder","assistant","events","agent","gateway","reminder"],"badges":{"gateway":"C-R2:v2 / 本人确认","reminder":"周六 10:00 / 仅一次"},"quote":"等等，不是九点，是十点。只提醒这一次。","quoteSource":"S-A/A07:rev1","shortQuote":"等等，不是九点，是十点。只提醒这一次。"},{"id":"consent","title":"只把愿意分享的内容投影出去","label":"05 授权分享","quoteId":"A13","summary":"陈阿姨允许分享鱼的近况和看鱼的回忆，指定接收人小林。私人记忆不会因此整体复制给家属。","input":"允许的内容版本 + 接收人 family-lin + 本轮明确许可。","process":"网关校验授权，再从允许字段生成近况、原话片段和可聊话题；来源只暴露安全引用。","output":"P01 授权投影；不附整段聊天、个人换水提醒，也不让家属侧模型先读取全部私人资料。","rule":"重要 ≠ 可以共享。生成输入、读详情和输出时都复核授权；新接收人和扩权需要另行确认。","edges":["voiceIn","turnEvent","trigger","command","share"],"nodes":["elder","assistant","events","agent","gateway","projection"],"badges":{"projection":"P01 / 仅小林","gateway":"对象 + 范围 + 内容版本"},"quote":"可以，就把鱼的近况和这段回忆给小林看。别把我们整段聊天都发过去。","quoteSource":"S-A/A13:rev1","shortQuote":"可以，就把鱼的近况和这段回忆给小林看。别把我们整段聊天都发过去。"},{"id":"request","title":"明确求助才进入待办","label":"06 家属待办","quoteId":"A16","summary":"“请小林周日带一袋鱼粮”是具体求助。它与生活分享分开，有独立的对象、许可、版本和状态。","input":"行动：带鱼粮；对象：小林；时间：周日；规格：先核对，不凭空选择。","process":"澄清后本人确认；通过网关创建 Q01。薄片规格的后续变化，也要单独获准才更新共享请求。","output":"Q01 等待回应，不是小林已经答应，更不是已经购买或带到。","rule":"近况与聊天线索不进入必须办结的工单。明确求助才有接手、协商与反馈。留言与请求是分立记录。","edges":["voiceIn","turnEvent","trigger","command","collaboration","collaborationRead"],"nodes":["elder","assistant","events","agent","gateway","request","portal"],"badges":{"request":"Q01 / 等待回应","portal":"需要你参与"},"quote":"对了，鱼粮也快没了，想请小林周日回来时带一袋。","quoteSource":"S-A/A16:rev1","shortQuote":"对了，鱼粮也快没了，想请小林周日回来时带一袋。"},{"id":"family","title":"家属先看见生活，再决定如何参与","label":"07 家属可见","quoteId":"F01","summary":"小林通过家属入口读取授权近况与请求，不直接访问妈妈的个人记忆。没有待办时，交流线索仍有价值。","input":"小林的登录身份 + 当前有效授权；不是妈妈的全量聊天上下文。","process":"分别查询授权投影与收到的明确请求；不生成情绪诊断、孝心分数或必须完成的问候任务。","output":"最近的生活 / 下次聊什么 / 需要你参与。三种内容不能都叫“待办”。","rule":"图中没有家属 → 私人记忆的直连。原话片段也有授权和保留边界；没有音频时只展示文字。","edges":["shareRead","familyView","familyAction","collaborationRead"],"nodes":["family","portal","projection","request"],"badges":{"family":"近况 / 话题 / 明确求助","portal":"仅授权内容"},"quote":"原来鱼好多了。下次和妈妈聊，我就问问那几条鱼。","quoteSource":"S-F/F01:rev1","shortQuote":"原来鱼好多了。下次和妈妈聊，我就问问那几条鱼。"},{"id":"respond","title":"关心来自小林本人，不由 AI 冒充","label":"08 双向参与","quoteId":"F02","summary":"小林主动留言，也可以接手带鱼粮请求。客户端操作经业务网关入账，AI 不替她编造“已经看过／答应”。","input":"小林实际提交的文字留言、接手或完成反馈；本图全部使用剧本模拟。","process":"校验发送者、接收设置、授权与请求当前版本；分别记录留言与事项状态。","output":"L01 小林留言；Q01 已接手。已接手仍然不是已完成，家属反馈也不等于客观核验。","rule":"不读取或假装知道外部微信和电话。小林未回应时保持等待，不自动扩大接收人或编造回复。","edges":["familyAction","familySubmit","collaboration","collaborationRead"],"nodes":["family","portal","gateway","request"],"badges":{"family":"本人留言 / 主动接手","request":"L01 留言 / Q01 已接手"},"quote":"我还记得小时候看鱼，周日回来一起看看。","quoteSource":"S-F/F02:rev1","shortQuote":"我还记得小时候看鱼，周日回来一起看看。"},{"id":"return","title":"带着明确来源，把反馈还给老人","label":"09 反馈闭环","quoteId":"C03","summary":"网关返回带来源的业务结果，经 Agent 与 AI 助理统一转述。陈阿姨确认收到后，只关闭这一次鱼粮求助。","input":"小林反馈已带到鱼粮；之后陈阿姨确认收到。不能仅凭时间过去自动办结。","process":"家属反馈经网关 → Agent → 输出协调；播报“小林反馈说……”，丢弃迟到或旧版本回应。","output":"等待回应 → 已接手 → 家属反馈 → 老人确认；不把别人自报说成系统亲眼核验。","rule":"真实后台尚未接通。这是职责与信息路径的动态解释，不是实际消息送达、业务恢复或全双工证据。","edges":["familyAction","familySubmit","receipt","replyContext","voiceOut","voiceIn","turnEvent","trigger","command","collaboration"],"nodes":["family","portal","gateway","agent","assistant","elder","events","request"],"badges":{"assistant":"“小林反馈说……”","request":"本人确认后 / 本次关闭"},"quote":"小林反馈说，核对好规格的鱼粮已经带到了。","quoteSource":"S-C2/C03:rev1","shortQuote":"小林反馈说，核对好规格的鱼粮已经带到了。"},{"id":"deny","title":"拒绝分享，信息在私人侧停住","label":"边界：拒绝分享","quoteId":"P01","quoteScenario":"privacy","summary":"陈阿姨说“先别告诉小林”，则没有授权投影，也没有通知。个人记忆与已经确认的个人提醒不受影响。","input":"明确拒绝本次分享。","process":"共享候选失效；业务网关拒绝外发，不给家属留下旁路提示。","output":"家属只看到普通空态，不会知道“妈妈隐瞒了一条内容”。","rule":"红色边框表示本次出口关闭，不表示删除全部个人记忆；图中未点亮任何家庭内容出口。","edges":["voiceIn","turnEvent","trigger","command","receipt","replyContext","voiceOut"],"nodes":["elder","assistant","events","agent","gateway","memory"],"blocked":["projection"],"badges":{"gateway":"本次拒绝 / 不外发","projection":"无新投影"},"quote":"这次先别告诉小林，留着咱们下次聊就好。","quoteSource":"S-A/P01:rev1","shortQuote":"这次先别告诉小林，留着咱们下次聊就好。"},{"id":"failure","title":"保存失败，不提前宣布成功","label":"边界：保存失败","quoteId":"X01","quoteScenario":"failure","summary":"本人已经确认，也可能保存失败。失败结果返回 AI 助理如实说明，计划尚未生效；恢复后沿同一幂等标识重试。","input":"C-R2:v2 已确认，但注入模拟存储失败。","process":"没有成功事务回执，不创建有效提醒或发送任务；重试沿用 reminder:SA:A09:v2。","output":"“还没有保存成功，暂时没有生效”；恢复时最多创建一个 R01。","rule":"存储失败是系统必须处理的异常；手机后台、网络和设备能力限制是客观条件，不能混为一谈。","edges":["command","receipt","replyContext","voiceOut"],"nodes":["gateway","agent","assistant","elder"],"blocked":["reminder"],"badges":{"gateway":"模拟失败 / 不能说已保存","reminder":"未生效 / 不调度"},"quote":"这个提醒还没有保存成功，暂时没有生效。我会用同一个操作标识重试，不重复创建。","quoteSource":"S-A/X01:rev1","shortQuote":"这个提醒还没有保存成功，暂时没有生效。我会用同一个操作标识重试，不重复创建。"}],"mainCount":9,"nodes":["elder","assistant","agent","family","events","gateway","memory","reminder","projection","request","portal"],"edges":{"voiceIn":[0,"elder","assistant"],"voiceOut":[1,"assistant","elder"],"turnEvent":[2,"assistant","events"],"trigger":[3,"events","agent"],"command":[4,"agent","gateway"],"receipt":[5,"gateway","agent"],"memoryIO":[6,"gateway","memory"],"memoryResult":[7,"memory","gateway"],"replyContext":[8,"agent","assistant"],"reminderSave":[9,"gateway","reminder"],"reminderResult":[10,"reminder","gateway"],"share":[11,"gateway","projection"],"shareRead":[12,"projection","portal"],"familyView":[13,"portal","family"],"familyAction":[14,"family","portal"],"collaboration":[15,"gateway","request"],"collaborationRead":[16,"request","portal"],"familySubmit":[17,"portal","gateway"]}};
+// Pure presentation controller. No backend, microphone, model, or messaging API.
+(function () {
+  'use strict';
+  const data = ARCH_STORY;
+  const $ = id => document.getElementById(id);
+  const svg = document.querySelector('.diagram-container svg');
+  const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let current = 0;
+  let overview = false;
+  let automatic = !preference.matches;
+  let flowing = !preference.matches;
+  let period = 9000;
+  let elapsed = 0;
+  let last = performance.now();
+  const getChapter = () => data.chapters[current];
+
+  function motion() {
+    svg.classList.toggle('c-flow-paused', !flowing);
+    if (typeof svg.pauseAnimations === 'function') {
+      if (flowing) svg.unpauseAnimations(); else svg.pauseAnimations();
+    }
+    $('arch-flow').checked = flowing;
+  }
+  function render() {
+    const chapter = getChapter();
+    const keys = overview ? Object.keys(data.edges) : chapter.edges;
+    const activeEdges = new Set(keys.map(key => data.edges[key][0]));
+    const activeNodes = new Set(overview ? data.nodes : chapter.nodes);
+    for (const group of svg.querySelectorAll('[data-edge]')) {
+      group.classList.toggle('is-active', activeEdges.has(Number(group.dataset.edge)));
+    }
+    for (const group of svg.querySelectorAll('[data-node]')) {
+      group.classList.toggle('is-active', activeNodes.has(group.dataset.node));
+      group.classList.toggle('is-blocked', !overview && (chapter.blocked || []).includes(group.dataset.node));
+    }
+    for (const badge of svg.querySelectorAll('[data-badge]')) {
+      badge.textContent = overview ? '' : chapter.badges?.[badge.dataset.badge] || '';
+    }
+    $('arch-now-title').textContent = overview ? '四个角色，一条受控的信息闭环' : chapter.title;
+    $('arch-now-summary').textContent = overview ? '老人 ↔ AI 助理负责交流；后台 Agent 通过业务网关读取与更新私人记忆，生成获准的提醒、分享与求助；家属本人回应，再将有来源的结果转达老人。' : chapter.summary;
+    $('arch-now-quote').textContent = overview ? '“记住重要的生活，在本人可控制的范围内，帮助家人接着聊、接着做。”' : `“${chapter.quote}”`;
+    $('arch-now-source').textContent = overview ? '设计总览 / 虚构养鱼情景；不是实时调用追踪' : `虚构原话 ${chapter.quoteSource} / 章节按机制组织，不是实测时间顺序`;
+    $('arch-input').textContent = overview ? '老人语音与家属本人的操作，均保留来源和明确身份。' : chapter.input;
+    $('arch-process').textContent = overview ? '最终轮次 → Agent 候选 → 业务网关；读权限、确认、版本、幂等与持久化不交给模型自行决定。' : chapter.process;
+    $('arch-output').textContent = overview ? '个人记忆、个人提醒、授权近况、明确求助、本人留言彼此分立；结果经统一输出协调转达。' : chapter.output;
+    $('arch-rule').textContent = overview ? '不把所有聊天变成工单，不把私人记忆交给家属，不把模拟当作真实实现。AI 助理与 Agent 是职责划分，不强制两个模型。' : chapter.rule;
+    $('arch-svg-title').textContent = overview ? '四角色 / 双向信息闭环' : `${current < data.mainCount ? String(current + 1).padStart(2, '0') : '边界'} / ${chapter.title}`;
+    $('arch-svg-quote').textContent = overview ? '语音交互与后台整理并行；所有副作用经业务校验' : chapter.shortQuote;
+    $('arch-position').textContent = overview ? '总览' : current < data.mainCount ? `${String(current + 1).padStart(2, '0')} / ${data.mainCount}` : '边界分支';
+    $('arch-overview').textContent = overview ? '返回分步' : '架构总览';
+    $('arch-overview').setAttribute('aria-pressed', String(overview));
+    $('arch-auto').checked = automatic;
+    document.querySelectorAll('[data-chapter]').forEach(button => {
+      const selected = !overview && button.dataset.chapter === chapter.id;
+      if (selected) button.setAttribute('aria-current', 'step'); else button.removeAttribute('aria-current');
+    });
+    $('arch-progress').value = elapsed / period;
+    motion();
+  }
+  function select(id, keepAuto = false) {
+    const next = data.chapters.findIndex(chapter => chapter.id === id);
+    if (next < 0) throw new Error('Unknown architecture chapter');
+    current = next;
+    overview = false;
+    elapsed = 0;
+    if (!keepAuto) automatic = false;
+    render();
+  }
+  function next() { select(data.chapters[current >= data.mainCount - 1 ? 0 : current + 1].id); }
+  function previous() { select(data.chapters[current > 0 && current < data.mainCount ? current - 1 : data.mainCount - 1].id); }
+  function setAuto(enabled) {
+    automatic = enabled;
+    if (automatic && (overview || current >= data.mainCount)) { current = 0; overview = false; elapsed = 0; }
+    last = performance.now();
+    render();
+  }
+  function setFlow(enabled) { flowing = enabled; motion(); }
+  function showOverview() { overview = !overview; automatic = false; elapsed = 0; render(); }
+
+  $('arch-tabs').addEventListener('click', event => {
+    const button = event.target.closest('[data-chapter]');
+    if (button) select(button.dataset.chapter);
+  });
+  $('arch-next').addEventListener('click', next);
+  $('arch-prev').addEventListener('click', previous);
+  $('arch-overview').addEventListener('click', showOverview);
+  $('arch-auto').addEventListener('change', event => setAuto(event.target.checked));
+  $('arch-flow').addEventListener('change', event => setFlow(event.target.checked));
+  $('arch-period').addEventListener('change', event => { period = Number(event.target.value); elapsed = 0; });
+  $('arch-zoom').addEventListener('change', event => { $('arch-scale').style.width = `${Number(event.target.value)}%`; });
+  $('arch-fullscreen').addEventListener('click', async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await $('arch-view').requestFullscreen();
+    } catch (_) { $('arch-message').textContent = '此浏览器无法进入页面全屏，可使用浏览器自带全屏功能。'; }
+  });
+  // Freeze chapter changes before the stock exporter captures current SVG.
+  // Flowing dots remain available for animated GIF/WebM export.
+  $('btn-export').addEventListener('click', () => {
+    automatic = false;
+    $('arch-auto').checked = false;
+    $('arch-message').textContent = '已暂停自动讲解，导出当前章节的图；可先点“架构总览”导出完整信息流。';
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { automatic = false; flowing = false; render(); }
+  });
+  preference.addEventListener?.('change', event => {
+    if (event.matches) { automatic = false; flowing = false; render(); }
+  });
+  document.addEventListener('keydown', event => {
+    if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
+    if (event.target.closest('input, select, textarea, button, summary, [contenteditable], [role="menu"]')) return;
+    if ($('export-menu').classList.contains('open') || $('archify-gif-dialog').classList.contains('open')) return;
+    if (event.code === 'Space') { event.preventDefault(); setAuto(!automatic); }
+    if (event.key === 'ArrowRight') { event.preventDefault(); next(); }
+    if (event.key === 'ArrowLeft') { event.preventDefault(); previous(); }
+  });
+  function tick(now) {
+    if (automatic) {
+      elapsed += Math.min(250, Math.max(0, now - last));
+      if (elapsed >= period) select(data.chapters[(current + 1) % data.mainCount].id, true);
+      $('arch-progress').value = elapsed / period;
+    }
+    last = now;
+    requestAnimationFrame(tick);
+  }
+  render();
+  if (preference.matches) $('arch-message').textContent = '已尊重系统“减少动态效果”设置：自动讲解与流动均关闭，可手动开启。';
+  window.AgeGuardArchitecture = Object.freeze({
+    select, next, previous, showOverview, setAuto, setFlow,
+    inspect: () => ({ current: getChapter().id, overview, automatic, flowing, elapsed,
+      edges: overview ? Object.keys(data.edges) : [...getChapter().edges],
+      blocked: overview ? [] : [...(getChapter().blocked || [])] })
+  });
+  requestAnimationFrame(tick);
+})();
+
+// Additive WebM capture: leave the stock Archify scripts intact. In our Chrome
+// validation the stock VP9/capture-before-first-paint path produced black frames.
+// Paint each frame first, request explicit capture, and prefer supported VP8.
+(function () {
+  'use strict';
+  const menu = document.getElementById('export-menu');
+  const nativeRun = Archify.exportMenu.run;
+  const status = document.getElementById('arch-message');
+  let busy = false;
+  const report = text => { status.textContent = text; };
+  const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
+
+  function frameSvg(time, scale) {
+    const live = document.querySelector('.diagram-container svg');
+    const clone = live.cloneNode(true);
+    const vb = live.viewBox.baseVal;
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    clone.setAttribute('width', vb.width * scale);
+    clone.setAttribute('height', vb.height * scale);
+    clone.setAttribute('data-theme', document.documentElement.dataset.theme || 'dark');
+    // Both palettes and semantic rules are local; no fonts/images are fetched.
+    const css = [...document.querySelectorAll('style')].map(style => style.textContent).join('\n');
+    const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+    style.textContent = css + '\nsvg { font-family: ui-monospace, SFMono-Regular, Menlo, "PingFang SC", "Microsoft YaHei", monospace; }\n* { animation: none !important; transition: none !important; }\n.c-video-bg { fill: var(--bg); }';
+    clone.insertBefore(style, clone.firstChild);
+    const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    bg.setAttribute('width', '100%'); bg.setAttribute('height', '100%'); bg.setAttribute('class', 'c-video-bg');
+    clone.insertBefore(bg, style.nextSibling);
+    for (const [selector, duration] of [['.a-emphasis', .8], ['.a-default', 1.2], ['.a-security', 1], ['.a-dashed', 1]]) {
+      for (const path of clone.querySelectorAll(selector)) {
+        path.style.strokeDashoffset = String(-20 * ((time % duration) / duration));
+        if (selector === '.a-emphasis') path.style.opacity = String(.6 + .2 * (1 - Math.cos(Math.PI * time)));
+      }
+    }
+    for (const motion of clone.querySelectorAll('animateMotion')) {
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', motion.getAttribute('path'));
+      const duration = parseFloat(motion.getAttribute('dur'));
+      const point = path.getPointAtLength(path.getTotalLength() * (time % duration) / duration);
+      motion.parentNode.setAttribute('cx', point.x);
+      motion.parentNode.setAttribute('cy', point.y);
+      motion.remove();
+    }
+    return new XMLSerializer().serializeToString(clone);
+  }
+  async function paint(ctx, canvas, frame) {
+    const url = URL.createObjectURL(new Blob([frame], { type: 'image/svg+xml;charset=utf-8' }));
+    try {
+      const image = new Image();
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('视频帧绘制超时')), 10000);
+        image.onload = () => { clearTimeout(timer); resolve(); };
+        image.onerror = () => { clearTimeout(timer); reject(new Error('无法加载视频帧')); };
+        image.src = url;
+      });
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(image, 0, 0);
+    } finally { URL.revokeObjectURL(url); }
+  }
+  async function exportVideo() {
+    if (busy) { report('视频正在导出，请等待或刷新页面取消。'); return; }
+    if (typeof MediaRecorder !== 'function' || !HTMLCanvasElement.prototype.captureStream) throw new Error('此浏览器不支持 Canvas 视频导出，请用 GIF 或录屏');
+    busy = true;
+    let stream, recorder;
+    try {
+      window.AgeGuardArchitecture.setAuto(false);
+      const settings = await showGifSettingsDialog('WebM');
+      if (!settings) return;
+      const vb = document.querySelector('.diagram-container svg').viewBox.baseVal;
+      let scale = settings.scale;
+      while (scale > 1 && vb.width * vb.height * scale * scale > 16 * 1024 * 1024) scale--;
+      const canvas = document.createElement('canvas');
+      canvas.width = vb.width * scale; canvas.height = vb.height * scale;
+      const ctx = canvas.getContext('2d', { alpha: false });
+      await paint(ctx, canvas, frameSvg(0, scale));
+      const manual = typeof window.CanvasCaptureMediaStreamTrack?.prototype?.requestFrame === 'function';
+      stream = canvas.captureStream(manual ? 0 : settings.fps);
+      const track = stream.getVideoTracks()[0];
+      const mimeType = ['video/webm;codecs=vp8', 'video/webm;codecs=vp9', 'video/webm'].find(type => MediaRecorder.isTypeSupported(type));
+      if (!mimeType) throw new Error('此浏览器没有支持的 WebM 编码器，请用 GIF 或录屏');
+      recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 5000000 });
+      const chunks = [];
+      const stopped = new Promise((resolve, reject) => {
+        recorder.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
+        recorder.onstop = () => resolve(new Blob(chunks, { type: 'video/webm' }));
+        recorder.onerror = event => reject(new Error(event.error?.message || '视频编码失败'));
+      });
+      // Attach a rejection handler immediately, even if encoding fails mid-loop.
+      stopped.catch(() => {});
+      recorder.start();
+      const total = Math.round(settings.fps * settings.duration);
+      for (let i = 0; i < total; i++) {
+        const began = performance.now();
+        await paint(ctx, canvas, frameSvg(i / settings.fps, scale));
+        if (typeof track.requestFrame === 'function') track.requestFrame();
+        report(`正在导出 WebM ${Math.round((i + 1) / total * 100)}% · ${scale}× / ${settings.fps}fps。仅连线流动，不含语音。`);
+        await delay(Math.max(1, 1000 / settings.fps - (performance.now() - began)));
+      }
+      // Let the final painted frame reach the encoder before flushing.
+      await delay(100);
+      recorder.stop();
+      const blob = await Promise.race([stopped, delay(10000).then(() => { throw new Error('视频编码结束超时'); })]);
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.href = url; link.download = 'ageguard-conversation-architecture.webm';
+      document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      report(`WebM 已生成（${Math.round(blob.size / 1024)} KiB），请播放检查画面。支持范围与解码验证结果见说明。`);
+    } finally {
+      if (recorder && recorder.state !== 'inactive') recorder.stop();
+      stream?.getTracks().forEach(track => track.stop());
+      busy = false;
+    }
+  }
+  function runVideo() {
+    Archify.exportMenu.close(true);
+    return exportVideo().catch(error => { report('WebM 未导出成功：' + error.message); });
+  }
+  // Capture stops the stock delegated click handler only for WebM.
+  menu.addEventListener('click', event => {
+    const button = event.target.closest('button[data-format="webm"]');
+    if (!button || button.disabled) return;
+    event.preventDefault(); event.stopImmediatePropagation(); runVideo();
+  }, true);
+  Archify.exportMenu.run = function (format) { return format === 'webm' ? runVideo() : nativeRun(format); };
+})();
+
+</script>
+</body>
+</html>
