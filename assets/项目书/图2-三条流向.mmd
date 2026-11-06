@@ -1,0 +1,20 @@
+sequenceDiagram
+  autonumber
+  participant U as 老人
+  participant P as 老人端 App
+  participant V as 语音链路
+  participant O as 输出协调
+  participant G as 并行 Agent
+  participant S as 确定性业务服务
+  participant D as RDS / 调度
+
+  U->>P: “对了，周六十点提醒我按原来的安排给鱼缸换水”
+  P->>V: 音频流（分片）
+  V-->>O: 流式转写与轮次事件
+  V-->>G: 同一轮并行投递轮次事件（去重后持久化）
+  G->>S: 记忆候选（来源、时间）+ 提醒候选（时间、重复规则）
+  S->>D: 事务写入：记忆候选 v1 + 提醒计划 v1 + 调度任务
+  D-->>S: 提交成功
+  S-->>O: 提交成功 + 版本号
+  O-->>U: “记下了，周六上午十点提醒你换水，对吗？”
+  Note over O,U: 若提交失败或超时，只能说“我还在保存”，不能宣称已完成
